@@ -3,6 +3,7 @@
 #include "one_batch_input_stream.h"
 #include "merging_sorted_input_stream.h"
 
+#include <ydb/public/sdk/cpp/client/ydb_value/value.h>
 #include <ydb/library/binary_json/write.h>
 #include <ydb/library/dynumber/dynumber.h>
 #include <ydb/core/util/yverify_stream.h>
@@ -1070,9 +1071,14 @@ static bool ConvertData(TCell& cell, const NScheme::TTypeInfo& colType, TMemoryP
             cell = TCell(saved.data(), saved.size());
             break;
         }
-        case NScheme::NTypeIds::Decimal:
-            errorMessage = "Decimal conversion is not supported yet";
-            return false;
+        case NScheme::NTypeIds::Decimal: {
+            const auto val = NYdb::TDecimalValue(TString(cell.AsBuf()));
+            std::pair<ui64,ui64>& decimalVal = *( memPool.Allocate<std::pair<ui64,ui64> >() );
+            decimalVal.first = val.Low_;
+            decimalVal.second = val.Hi_;
+            cell = TCell((const char*)&decimalVal, sizeof(decimalVal));
+            break;
+        }
         default:
             break;
     }
