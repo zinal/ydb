@@ -1075,7 +1075,7 @@ static bool ConvertData(TCell& cell, const NScheme::TTypeInfo& colType, TMemoryP
             const auto decimalVal = NYql::NDecimal::FromString(cell.AsBuf(), 22, 9);
             char buffer[sizeof(decimalVal)];
             const size_t sz = NYql::NDecimal::Serialize(decimalVal, buffer);
-            void* dest = memPool.allocate(sz);
+            void* dest = memPool.Allocate(sz);
             memcpy(dest, &buffer, sz);
             cell = TCell((const char*)dest, sz);
             break;
