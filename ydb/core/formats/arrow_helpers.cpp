@@ -3,7 +3,7 @@
 #include "one_batch_input_stream.h"
 #include "merging_sorted_input_stream.h"
 
-#include <ydb/public/sdk/cpp/client/ydb_value/value.h>
+#include <ydb/library/yql/public/decimal/yql_decimal_serialize.h>
 #include <ydb/library/binary_json/write.h>
 #include <ydb/library/dynumber/dynumber.h>
 #include <ydb/core/util/yverify_stream.h>
