@@ -1073,7 +1073,7 @@ static bool ConvertData(TCell& cell, const NScheme::TTypeInfo& colType, TMemoryP
         }
         case NScheme::NTypeIds::Decimal: {
             auto& decimalVal = *( memPool.Allocate<NYql::NDecimal::TInt128>() );
-            decimalVal = NYql::NDecimal::FromString(cell.AsBuf());
+            decimalVal = NYql::NDecimal::FromString(cell.AsBuf(), 22, 9);
             cell = TCell((const char*)&decimalVal, sizeof(decimalVal));
             break;
         }
