@@ -1072,9 +1072,12 @@ static bool ConvertData(TCell& cell, const NScheme::TTypeInfo& colType, TMemoryP
             break;
         }
         case NScheme::NTypeIds::Decimal: {
-            auto& decimalVal = *( memPool.Allocate<NYql::NDecimal::TInt128>() );
-            decimalVal = NYql::NDecimal::FromString(cell.AsBuf(), 22, 9);
-            cell = TCell((const char*)&decimalVal, sizeof(decimalVal));
+            const auto decimalVal = NYql::NDecimal::FromString(cell.AsBuf(), 22, 9);
+            char buffer[sizeof(decimalVal)];
+            const size_t sz = NYql::NDecimal::Serialize(decimalVal, buffer);
+            void* dest = memPool.allocate(sz);
+            memcpy(dest, &buffer, sz);
+            cell = TCell((const char*)dest, sz);
             break;
         }
         default:
