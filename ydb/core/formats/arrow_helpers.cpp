@@ -1071,15 +1071,11 @@ static bool ConvertData(TCell& cell, const NScheme::TTypeInfo& colType, TMemoryP
             break;
         }
         case NScheme::NTypeIds::Decimal: {
-            auto& decBuf = *memPool.Allocate<std::pair<ui64, ui64> >();
-            const auto& srcBuf = cell.AsBuf();
-            if (srcBuf.size() != sizeof(decBuf)) {
+            // We assume that Apache Arrow's Decimal128 binary layout is exactly the same as YDB's internal one.
+            if (cell.Size() != sizeof(std::pair<ui64, ui64>)) {
                 errorMessage = "Invalid Decimal128 value size";
                 return false;
             }
-            // This assumes that Apache Arrow's Decimal128 binary layout is exactly the same as YDB's internal one.
-            memcpy(&decBuf, cell.AsBuf().data(), sizeof(decBuf));
-            cell = TCell((const char*)&decBuf, sizeof(decBuf));
             break;
         }
         default:
