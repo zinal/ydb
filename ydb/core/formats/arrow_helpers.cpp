@@ -1215,6 +1215,7 @@ bool TArrowToYdbConverter::Process(const arrow::RecordBatch& batch, TString& err
 
     i64 rowsUnroll = batch.num_rows() - batch.num_rows() % unroll;
     for (; row < rowsUnroll; row += unroll) {
+        memPool.Clear(); // pool must be cleared per iteration, not per row
         ui32 col = 0;
         for (auto& [colName, colType] : YdbSchema) {
             // TODO: support pg types
@@ -1241,7 +1242,6 @@ bool TArrowToYdbConverter::Process(const arrow::RecordBatch& batch, TString& err
             }
 
             if (NeedDataConversion(colType)) {
-                memPool.Clear();
                 for (i32 i = 0; i < unroll; ++i) {
                     if (!ConvertData(cells[i][col], colType, memPool, errorMessage)) {
                         return false;
