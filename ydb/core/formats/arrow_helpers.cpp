@@ -3,7 +3,6 @@
 #include "one_batch_input_stream.h"
 #include "merging_sorted_input_stream.h"
 
-#include <ydb/library/yql/public/decimal/yql_decimal_serialize.h>
 #include <ydb/library/binary_json/write.h>
 #include <ydb/library/dynumber/dynumber.h>
 #include <ydb/core/util/yverify_stream.h>
@@ -1072,9 +1071,14 @@ static bool ConvertData(TCell& cell, const NScheme::TTypeInfo& colType, TMemoryP
             break;
         }
         case NScheme::NTypeIds::Decimal: {
-            const auto decVal = NYql::NDecimal::FromString(cell.AsBuf(), 22, 9);
             auto& decBuf = *memPool.Allocate<std::pair<ui64, ui64> >();
-            decBuf = NYql::NDecimal::MakePair(decVal);
+            const auto& srcBuf = cell.AsBuf();
+            if (srcBuf.size() != sizeof(decBuf)) {
+                errorMessage = "Invalid Decimal128 value size";
+                return false;
+            }
+            // This assumes that Apache Arrow's Decimal128 binary layout is exactly the same as YDB's internal one.
+            memcpy(&decBuf, cell.AsBuf().data(), sizeof(decBuf));
             cell = TCell((const char*)&decBuf, sizeof(decBuf));
             break;
         }
