@@ -60,7 +60,9 @@ class _Formatting(object):
 
 
 def get_default_json():
-    return json.loads('''{
+    ofile = os.getenv('YDB_VERSION_JSON')
+    if ofile is None or len(ofile)==0:
+        return json.loads('''{
     "ARCADIA_SOURCE_HG_HASH": "0000000000000000000000000000000000000000",
     "ARCADIA_SOURCE_LAST_AUTHOR": "<UNKNOWN>",
     "ARCADIA_SOURCE_LAST_CHANGE": -1,
@@ -79,6 +81,8 @@ def get_default_json():
     "ARCADIA_PATCH_NUMBER": 0,
     "ARCADIA_TAG": ""
 }''')
+    with open(ofile) as f:
+        return json.load(f)
 
 
 def get_json(file_name):
