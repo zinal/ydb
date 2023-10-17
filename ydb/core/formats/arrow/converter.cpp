@@ -37,8 +37,12 @@ static bool ConvertData(TCell& cell, const NScheme::TTypeInfo& colType, TMemoryP
             break;
         }
         case NScheme::NTypeIds::Decimal:
+#if 0
             errorMessage = "Decimal conversion is not supported yet";
             return false;
+#else
+            break;
+#endif
         default:
             break;
     }
@@ -273,7 +277,6 @@ bool TArrowToYdbConverter::Process(const arrow::RecordBatch& batch, TString& err
             }
 
             if (NeedDataConversion(colType)) {
-                memPool.Clear();
                 for (i32 i = 0; i < unroll; ++i) {
                     if (!ConvertData(cells[i][col], colType, memPool, errorMessage)) {
                         return false;
@@ -287,6 +290,7 @@ bool TArrowToYdbConverter::Process(const arrow::RecordBatch& batch, TString& err
         for (i32 i = 0; i < unroll; ++i) {
             RowWriter_.AddRow(cells[i]);
         }
+        memPool.Clear();
     }
     cells.resize(1);
 #else
