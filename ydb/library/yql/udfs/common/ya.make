@@ -21,6 +21,7 @@ RECURSE(
     topfreq
     unicode_base
     url_base
+    uuid_helpers
     yson2
 )
 
