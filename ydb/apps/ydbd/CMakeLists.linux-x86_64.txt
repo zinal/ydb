@@ -47,6 +47,7 @@ target_link_libraries(ydbd PUBLIC
   topfreq_udf
   unicode_udf
   url_udf
+  uuid_helpers_udf
   yson2_udf
   dsv_udf
   client-ydb_persqueue_public-codecs

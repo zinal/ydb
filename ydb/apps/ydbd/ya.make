@@ -59,6 +59,7 @@ PEERDIR(
     ydb/library/yql/udfs/common/topfreq
     ydb/library/yql/udfs/common/unicode_base
     ydb/library/yql/udfs/common/url_base
+    ydb/library/yql/udfs/common/uuid_helpers
     ydb/library/yql/udfs/common/yson2
     ydb/library/yql/udfs/logs/dsv
     ydb/public/sdk/cpp/client/ydb_persqueue_public/codecs
