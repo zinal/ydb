@@ -2,7 +2,8 @@
 
 namespace {
     SIMPLE_MODULE(TUuidModule,
-        TToBase64)
+        TToBase64,
+        TFromBase64)
 }
 REGISTER_MODULES(TUuidModule)
 
