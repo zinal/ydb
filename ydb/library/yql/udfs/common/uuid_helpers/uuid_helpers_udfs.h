@@ -2,6 +2,8 @@
 
 #include <ydb/library/yql/public/udf/udf_data_type.h>
 #include <ydb/library/yql/public/udf/udf_helpers.h>
+#include <ydb/library/uuid/uuid.h>
+
 #include <library/cpp/string_utils/base64/base64.h>
 
 #include <util/generic/buffer.h>
@@ -13,16 +15,19 @@ namespace {
     using TUnboxedValue = NKikimr::NUdf::TUnboxedValue;
     using TUnboxedValuePod = NKikimr::NUdf::TUnboxedValuePod;
 
-    class TToBase64: public NYql::NUdf::TBoxedValue {
+    enum UuidToBase64UdfInput {
+        UuidToBase64_Uuid,
+        UuidToBase64_Text
+    };
+
+    template<enum UuidToBase64UdfInput InputType>
+    class TToBase64: public TBoxedValue {
     public:
         TToBase64(const TSourcePosition& pos)
             : Pos_(pos)
         {}
 
-        static const TStringRef& Name() {
-            static auto name = TStringRef::Of("ToBase64");
-            return name;
-        }
+        static TStringRef Name();
 
         static bool DeclareSignature(
             const TStringRef& name,
@@ -35,13 +40,16 @@ namespace {
                 return false;
             }
 
-            builder.Args()
-                ->Add<TAutoMap<TUuid>>()
-                .Done()
-                .Returns<char*>();
+            if constexpr (InputType == UuidToBase64_Uuid) {
+                builder.Args()->Add<TAutoMap<TUuid>>().Done()
+                    .Returns<char*>();
+            } else {
+                builder.Args()->Add<char*>().Done()
+                    .Returns<char*>();
+            }
 
             if (!typesOnly) {
-                builder.Implementation(new TToBase64(builder.GetSourcePosition()));
+                builder.Implementation(new TToBase64<InputType>(builder.GetSourcePosition()));
             }
             return true;
         }
@@ -53,12 +61,21 @@ namespace {
             try {
                 char output[32];
                 const auto input = args[0].AsStringRef();
-                if (input.Size() != 16) {
+                const auto sz = input.Size();
+                if (sz == 16) { // raw uuid
+                    memset(output, 0, sizeof(output));
+                    Base64EncodeUrlNoPadding(output, (unsigned char*) input.Data(), 16);
+                    return valueBuilder->NewString(TStringBuf(&output[0], 22));
+                } else if (sz == 36 || sz == 32) { // formatted uuid
+                    ui16 dw[8];
+                    if (! NKikimr::NUuid::ParseUuidToArray(input, dw, (sz == 32))) {
+                        ythrow yexception() << "invalid uuid input";
+                    }
+                    Base64EncodeUrlNoPadding(output, (unsigned char*) dw, 16);
+                    return valueBuilder->NewString(TStringBuf(&output[0], 22));
+                } else { // illegal input length
                     return args[0]; // Wrong type, error on call
                 }
-                memset(output, 0, sizeof(output));
-                Base64EncodeUrlNoPadding(output, (unsigned char*) input.Data(), input.Size());
-                return valueBuilder->NewString(TStringBuf(&output[0], 22));
             } catch (const std::exception& e) {
                 UdfTerminate((TStringBuilder() << Pos_ << " " << e.what()).data());
             }
@@ -67,7 +84,17 @@ namespace {
         const TSourcePosition Pos_;
     };
 
-    class TFromBase64: public NYql::NUdf::TBoxedValue {
+    template <>
+    TStringRef TToBase64<UuidToBase64_Uuid>::Name() {
+        return TStringRef::Of("ToBase64");
+    }
+
+    template <>
+    TStringRef TToBase64<UuidToBase64_Text>::Name() {
+        return TStringRef::Of("ToBase64f");
+    }
+
+    class TFromBase64: public TBoxedValue {
     public:
         TFromBase64(const TSourcePosition& pos)
             : Pos_(pos)
