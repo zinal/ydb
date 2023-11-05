@@ -1,47 +1,73 @@
 #pragma once
 
+#include <ydb/library/yql/public/udf/udf_data_type.h>
 #include <ydb/library/yql/public/udf/udf_helpers.h>
+#include <library/cpp/string_utils/base64/base64.h>
 
 #include <util/generic/buffer.h>
 
 namespace {
-    using TAutoMapString = NKikimr::NUdf::TAutoMap<char*>;
-    using TOptionalString = NKikimr::NUdf::TOptional<char*>;
-    using TOptionalByte = NKikimr::NUdf::TOptional<ui8>;
+
+    using namespace NYql::NUdf;
     using TStringRef = NKikimr::NUdf::TStringRef;
     using TUnboxedValue = NKikimr::NUdf::TUnboxedValue;
     using TUnboxedValuePod = NKikimr::NUdf::TUnboxedValuePod;
 
-    struct TSerializeIpVisitor {
-        TStringRef operator()(const TIp4& ip) const {
-            return TStringRef(reinterpret_cast<const char*>(&ip), 4);
+    class TToBase64: public NYql::NUdf::TBoxedValue {
+    public:
+        TToBase64(const TSourcePosition& pos)
+            : Pos_(pos)
+        {}
+
+        static const TStringRef& Name() {
+            static auto name = TStringRef::Of("ToBase64");
+            return name;
         }
-        TStringRef operator()(const TIp6& ip) const {
-            return TStringRef(reinterpret_cast<const char*>(&ip.Data), 16);
+
+        static bool DeclareSignature(
+            const TStringRef& name,
+            TType* userType,
+            IFunctionTypeInfoBuilder& builder,
+            bool typesOnly) {
+            Y_UNUSED(userType);
+
+            if (name != Name()) {
+                return false;
+            }
+
+            builder.Args()
+                ->Add<TAutoMap<TUuid>>()
+                .Done()
+                .Returns<char*>();
+
+            if (!typesOnly) {
+                builder.Implementation(new TToBase64(builder.GetSourcePosition()));
+            }
+            return true;
         }
+
+    private:
+        TUnboxedValue Run(
+            const IValueBuilder* valueBuilder,
+            const TUnboxedValuePod* args) const final {
+            try {
+                char output[32];
+                const auto input = args[0].AsStringRef();
+                if (input.Size() != 16) {
+                    return args[0]; // Wrong type, error on call
+                }
+                memset(output, 0, sizeof(output));
+                Base64EncodeUrlNoPadding(output, (unsigned char*) input.Data(), input.Size());
+                return valueBuilder->NewString(TStringBuf(&output[0], 22));
+            } catch (const std::exception& e) {
+                UdfTerminate((TStringBuilder() << Pos_ << " " << e.what()).data());
+            }
+        }
+
+        TSourcePosition Pos_;
     };
 
-    SIMPLE_STRICT_UDF(TFromBase64, bool(TOptionalString)) {
-        Y_UNUSED(valueBuilder);
-        bool result = false;
-        if (args[0]) {
-            const auto ref = args[0].AsStringRef();
-            result = (ref.Size() % 2) > 0;
-        }
-        return TUnboxedValuePod(result);
-    }
-
-    SIMPLE_STRICT_UDF(TToBase64, bool(TOptionalString)) {
-        Y_UNUSED(valueBuilder);
-        bool result = false;
-        if (args[0]) {
-            const auto ref = args[0].AsStringRef();
-            result = (ref.Size() % 2) > 0;
-        }
-        return TUnboxedValuePod(result);
-    }
+}
 
 #define EXPORTED_UUID_HELPERS_UDF \
-    TFromBase64, \
     TToBase64
-}

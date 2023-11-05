@@ -13,6 +13,7 @@ target_link_libraries(uuid_helpers_udf INTERFACE
   yutil
   yql-public-udf
   public-udf-support
+  cpp-string_utils-base64
 )
 
 add_global_library_for(uuid_helpers_udf.global uuid_helpers_udf)
@@ -48,6 +49,7 @@ target_link_libraries(uuid_helpers_udf.dyn PUBLIC
   yutil
   yql-public-udf
   public-udf-support
+  cpp-string_utils-base64
 )
 target_link_options(uuid_helpers_udf.dyn PRIVATE
   -ldl

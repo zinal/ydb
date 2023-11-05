@@ -7,8 +7,11 @@ YQL_ABI_VERSION(
 )
 
 SRCS(
-    uuid_helpers_module.cpp
     uuid_helpers_udfs.cpp
+)
+
+PEERDIR(
+    library/cpp/string_utils/base64
 )
 
 END()
