@@ -136,8 +136,9 @@ namespace {
             try {
                 char work[32], output[16];
                 const auto input = args[0].AsStringRef();
-                if (input.Size() != 22) {
-                    return args[0]; // Wrong type, error on call
+                const auto sz = input.Size();
+                if (sz != 22) {
+                    ythrow yexception() << "invalid length of encoded uuid: " << sz;
                 }
                 memset(work, '=', sizeof(work));
                 memcpy(work, input.Data(), 22);
