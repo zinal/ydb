@@ -27,7 +27,7 @@ namespace {
             : Pos_(pos)
         {}
 
-        static TStringRef Name();
+        static const TStringRef& Name();
 
         static bool DeclareSignature(
             const TStringRef& name,
@@ -85,13 +85,15 @@ namespace {
     };
 
     template <>
-    TStringRef TToBase64<UuidToBase64_Uuid>::Name() {
-        return TStringRef::Of("ToBase64");
+    const TStringRef& TToBase64<UuidToBase64_Uuid>::Name() {
+        static auto name = TStringRef::Of("ToBase64");
+        return name;
     }
 
     template <>
-    TStringRef TToBase64<UuidToBase64_Text>::Name() {
-        return TStringRef::Of("ToBase64f");
+    const TStringRef& TToBase64<UuidToBase64_Text>::Name() {
+        static auto name = TStringRef::Of("ToBase64f");
+        return name;
     }
 
     class TFromBase64: public TBoxedValue {
