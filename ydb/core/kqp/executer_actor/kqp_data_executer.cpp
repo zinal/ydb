@@ -141,10 +141,6 @@ public:
             YQL_ENSURE(Request.IsolationLevel == NKikimrKqp::ISOLATION_LEVEL_SERIALIZABLE);
         }
 
-        if (GetSnapshot().IsValid()) {
-            YQL_ENSURE(Request.IsolationLevel == NKikimrKqp::ISOLATION_LEVEL_SERIALIZABLE);
-        }
-
         ReadOnlyTx = IsReadOnlyTx();
     }
 
@@ -234,6 +230,8 @@ public:
                 addLocks(transform);
             }
         }
+
+        ResponseEv->Snapshot = GetSnapshot();
 
         if (!Locks.empty()) {
             if (LockHandle) {
@@ -1919,6 +1917,9 @@ private:
 
     void Handle(NLongTxService::TEvLongTxService::TEvAcquireReadSnapshotResult::TPtr& ev) {
         auto& record = ev->Get()->Record;
+
+        LOG_T("read snapshot result: " << record.GetStatus() << ", step: " << record.GetSnapshotStep()
+            << ", tx id: " << record.GetSnapshotTxId());
 
         if (record.GetStatus() != Ydb::StatusIds::SUCCESS) {
             ReplyErrorAndDie(record.GetStatus(), record.MutableIssues());

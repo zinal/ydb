@@ -17,6 +17,8 @@
 #include <library/cpp/testing/unittest/tests_data.h>
 #include <library/cpp/testing/unittest/registar.h>
 #include <library/cpp/yson/writer.h>
+#include <library/cpp/threading/future/async.h>
+
 
 #define Y_UNIT_TEST_TWIN(N, OPT)                                                                                   \
     template <bool OPT>                                                                                            \
@@ -80,6 +82,7 @@ struct TKikimrSettings: public TTestFeatureFlagsHolder<TKikimrSettings> {
     TString DomainRoot = KikimrDefaultUtDomainRoot;
     ui32 NodeCount = 1;
     bool WithSampleTables = true;
+    bool UseRealThreads = true;
     TDuration KeepSnapshotTimeout = TDuration::Zero();
     IOutputStream* LogStream = nullptr;
 
@@ -104,6 +107,9 @@ struct TKikimrSettings: public TTestFeatureFlagsHolder<TKikimrSettings> {
     TKikimrSettings& SetWithSampleTables(bool value) { WithSampleTables = value; return *this; }
     TKikimrSettings& SetKeepSnapshotTimeout(TDuration value) { KeepSnapshotTimeout = value; return *this; }
     TKikimrSettings& SetLogStream(IOutputStream* follower) { LogStream = follower; return *this; };
+    TKikimrSettings& SetStorage(const NFake::TStorage& storage) { Storage = storage; return *this; };
+    TKikimrSettings& SetFederatedQuerySetupFactory(NKqp::IKqpFederatedQuerySetupFactory::TPtr value) { FederatedQuerySetupFactory = value; return *this; };
+    TKikimrSettings& SetUseRealThreads(bool value) { UseRealThreads = value; return *this; };
 };
 
 class TKikimrRunner {
@@ -126,7 +132,11 @@ public:
         ui32 nodeCount = 1);
 
     ~TKikimrRunner() {
-        Driver->Stop(true);
+        RunCall([&] { Driver->Stop(true); return false; });
+        if (ThreadPoolStarted_) {
+            ThreadPool.Stop();
+        }
+
         Server.Reset();
         Client.Reset();
     }
@@ -150,6 +160,22 @@ public:
         return NYdb::NQuery::TQueryClient(*Driver, settings);
     }
 
+    template <typename Func>
+    NThreading::TFuture<NThreading::TFutureType<TFunctionResult<Func>>> RunInThreadPool(Func&& func) {
+        if (!ThreadPoolStarted_) {
+            ThreadPool.Start();
+            ThreadPoolStarted_ = true;
+        }
+
+        return NThreading::Async(std::move(func), ThreadPool);
+    }
+
+    template <typename Func>
+    TFunctionResult<Func> RunCall(Func&& func) {
+        auto future = RunInThreadPool(std::move(func));
+        return GetTestServer().GetRuntime()->WaitFuture(future);
+    }
+
     bool IsUsingSnapshotReads() const {
         return Server->GetRuntime()->GetAppData().FeatureFlags.GetEnableMvccSnapshotReads();
     }
@@ -163,6 +189,8 @@ private:
     THolder<Tests::TServerSettings> ServerSettings;
     THolder<Tests::TServer> Server;
     THolder<Tests::TClient> Client;
+    TAdaptiveThreadPool ThreadPool;
+    bool ThreadPoolStarted_ = false;
     TPortManager PortManager;
     TString Endpoint;
     NYdb::TDriverConfig DriverConfig;
