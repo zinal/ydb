@@ -2236,6 +2236,42 @@ Y_UNIT_TEST_SUITE(TImportTests) {
         )", Ydb::StatusIds::CANCELLED);
     }
 
+    Y_UNIT_TEST(ShouldFailOnNonUniqDestinationPaths) {
+        TTestBasicRuntime runtime;
+
+        auto unusedTestData = THashMap<TString, TString>();
+        Run(runtime, std::move(unusedTestData), R"(
+            ImportFromS3Settings {
+              endpoint: "localhost:%d"
+              scheme: HTTP
+              items {
+                source_prefix: "a"
+                destination_path: "/MyRoot/Table"
+              }
+              items {
+                source_prefix: "b"
+                destination_path: "/MyRoot/Table"
+              }
+            }
+        )", Ydb::StatusIds::BAD_REQUEST);
+    }
+
+    Y_UNIT_TEST(ShouldFailOnInvalidPath) {
+        TTestBasicRuntime runtime;
+
+        auto unusedTestData = THashMap<TString, TString>();
+        Run(runtime, std::move(unusedTestData), R"(
+            ImportFromS3Settings {
+              endpoint: "localhost:%d"
+              scheme: HTTP
+              items {
+                source_prefix: "a"
+                destination_path: "/InvalidRoot/Table"
+              }
+            }
+        )", Ydb::StatusIds::BAD_REQUEST);
+    }
+
     void CancelShouldSucceed(TDelayFunc delayFunc) {
         TTestBasicRuntime runtime;
         TTestEnv env(runtime, TTestEnvOptions());

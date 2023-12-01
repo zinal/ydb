@@ -180,9 +180,7 @@ private:
                 TPath::TChecker checks = path.Check();
                 checks
                     .IsAtLocalSchemeShard()
-                    .IsValidLeafName()
-                    .DepthLimit()
-                    .PathsLimit();
+                    .HasResolvedPrefix();
 
                 if (path.IsResolved()) {
                     checks
@@ -194,8 +192,15 @@ private:
                         .NotResolved();
                 }
 
-                if (path.Parent().IsResolved()) {
-                    checks.DirChildrenLimit();
+                if (checks) {
+                    checks
+                        .IsValidLeafName()
+                        .DepthLimit()
+                        .PathsLimit();
+
+                    if (path.Parent().IsResolved()) {
+                        checks.DirChildrenLimit();
+                    }
                 }
 
                 if (!checks) {
