@@ -80,7 +80,7 @@ public:
         , Credentials(credentials)
         , Bucket(bucket)
           // temporary fix - to avoid errors with Ceph-based S3 storage
-        , StorageClass((StorageClass == Aws::S3::Model::StorageClass::NOT_SET) ?
+        , StorageClass((storageClass == Aws::S3::Model::StorageClass::NOT_SET) ?
                        StorageClass = Aws::S3::Model::StorageClass::STANDARD :
                        storageClass)
     {
