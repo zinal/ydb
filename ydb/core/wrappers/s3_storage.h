@@ -81,6 +81,10 @@ public:
         , Bucket(bucket)
         , StorageClass(storageClass)
     {
+        if (StorageClass == Aws::S3::Model::StorageClass::NOT_SET) {
+            // temporary fix - to avoid errors with Ceph-based S3 storage
+            StorageClass = Aws::S3::Model::StorageClass::STANDARD;
+        }
     }
 
     ~TS3ExternalStorage();
