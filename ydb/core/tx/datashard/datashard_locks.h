@@ -501,7 +501,7 @@ public:
         // Some tests cannot exhaust default limit in under 5 minutes
         return NValgrind::PlainOrUnderValgrind(
             NSan::PlainOrUnderSanitizer(
-                16 * 1024,
+                512 * 1024,
                 1024),
             1024);
     }
