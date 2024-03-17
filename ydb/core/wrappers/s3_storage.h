@@ -34,7 +34,7 @@ private:
     const Aws::Client::ClientConfiguration Config;
     const Aws::Auth::AWSCredentials Credentials;
     const TString Bucket;
-    const Aws::S3::Model::StorageClass StorageClass = Aws::S3::Model::StorageClass::STANDARD;
+    const Aws::S3::Model::StorageClass StorageClass;
 
     template <typename TRequest, typename TOutcome>
     using THandler = std::function<void(const Aws::S3::S3Client*, const TRequest&, const TOutcome&, const std::shared_ptr<const Aws::Client::AsyncCallerContext>&)>;
@@ -79,12 +79,8 @@ public:
         , Config(config)
         , Credentials(credentials)
         , Bucket(bucket)
-        , StorageClass(storageClass)
+        , StorageClass(Aws::S3::Model::StorageClass::STANDARD)
     {
-        if (StorageClass == Aws::S3::Model::StorageClass::NOT_SET) {
-            // temporary fix - to avoid errors with Ceph-based S3 storage
-            StorageClass = Aws::S3::Model::StorageClass::STANDARD;
-        }
     }
 
     ~TS3ExternalStorage();
