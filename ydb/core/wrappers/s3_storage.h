@@ -71,12 +71,20 @@ public:
     TS3ExternalStorage(const Aws::Client::ClientConfiguration& config,
         const Aws::Auth::AWSCredentials& credentials,
         const TString& bucket, const Aws::S3::Model::StorageClass storageClass)
-        : Client(new Aws::S3::S3Client(credentials, config))
+        : Client(new Aws::S3::S3Client(
+            credentials,
+            config,
+            Aws::Client::AWSAuthV4Signer::PayloadSigningPolicy::Never,
+            /*useVirtualAddressing=*/ false))
         , Config(config)
         , Credentials(credentials)
         , Bucket(bucket)
         , StorageClass(storageClass)
     {
+        if (StorageClass == Aws::S3::Model::StorageClass::NOT_SET) {
+            // temporary fix - to avoid errors with Ceph-based S3 storage
+            StorageClass = Aws::S3::Model::StorageClass::STANDARD;
+        }
     }
 
     ~TS3ExternalStorage();
