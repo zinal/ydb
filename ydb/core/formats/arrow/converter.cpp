@@ -40,8 +40,12 @@ static bool ConvertData(TCell& cell, const NScheme::TTypeInfo& colType, TMemoryP
             break;
         }
         case NScheme::NTypeIds::Decimal:
+#if 0
             errorMessage = "Decimal conversion is not supported yet";
             return false;
+#else
+            break;
+#endif
         default:
             break;
     }
