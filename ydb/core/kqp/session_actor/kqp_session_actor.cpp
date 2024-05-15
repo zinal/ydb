@@ -573,6 +573,8 @@ public:
             QueryState->Orbit = std::move(response->Orbit);
         }
 
+        LOG_T("read snapshot result: " << StatusForSnapshotError(response->Status) << ", step: " << response->Snapshot.Step
+            << ", tx id: " << response->Snapshot.TxId);
         if (response->Status != NKikimrIssues::TStatusIds::SUCCESS) {
             auto& issues = response->Issues;
             ReplyQueryError(StatusForSnapshotError(response->Status), "", MessageFromIssues(issues));
@@ -959,6 +961,8 @@ public:
             YQL_ENSURE(commit);
         }
 
+        QueryState->TxCtx->OnNewExecutor(literal);
+
         if (literal) {
             if (QueryState) {
                 request.Orbit = std::move(QueryState->Orbit);
@@ -1152,6 +1156,8 @@ public:
             QueryState->QueryData->AddTxResults(QueryState->CurrentTx - 1, std::move(ev->GetTxResults()));
         }
         QueryState->QueryData->AddTxHolders(std::move(ev->GetTxHolders()));
+
+        QueryState->TxCtx->AcceptIncomingSnapshot(ev->Snapshot);
 
         if (ev->LockHandle) {
             QueryState->TxCtx->Locks.LockHandle = std::move(ev->LockHandle);

@@ -34,8 +34,8 @@ private:
     const Aws::Client::ClientConfiguration Config;
     const Aws::Auth::AWSCredentials Credentials;
     const TString Bucket;
-    const Aws::S3::Model::StorageClass StorageClass = Aws::S3::Model::StorageClass::STANDARD;
-    bool Verbose = true;
+    const Aws::S3::Model::StorageClass StorageClass;
+    const bool Verbose;
 
     template <typename TRequest, typename TOutcome>
     using THandler = std::function<void(const Aws::S3::S3Client*, const TRequest&, const TOutcome&, const std::shared_ptr<const Aws::Client::AsyncCallerContext>&)>;
@@ -86,7 +86,11 @@ public:
         const Aws::Auth::AWSCredentials& credentials,
         const TString& bucket, const Aws::S3::Model::StorageClass storageClass,
         bool verbose = true)
-        : Client(new Aws::S3::S3Client(credentials, config))
+        : Client(new Aws::S3::S3Client(
+            credentials,
+            config,
+            Aws::Client::AWSAuthV4Signer::PayloadSigningPolicy::Never,
+            /*useVirtualAddressing=*/ false))
         , Config(config)
         , Credentials(credentials)
         , Bucket(bucket)
