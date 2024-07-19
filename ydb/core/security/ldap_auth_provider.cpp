@@ -196,23 +196,23 @@ private:
         int debugLevel = -1;
         NKikimrLdap::SetOption(nullptr, NKikimrLdap::EOption::DEBUG, &debugLevel);
 
-        *ld = NKikimrLdap::Init(host, port);
-        if (*ld == nullptr) {
-            return {{TEvLdapAuthProvider::EStatus::UNAVAILABLE,
-                    {.Message = "Could not initialize LDAP connection for host: " + host + ", port: " + ToString(port) + ". " + NKikimrLdap::LdapError(*ld),
-                    .Retryable = false}}};
-        }
-
         int result = 0;
         if (Settings.GetUseTls().GetEnable()) {
             const TString& caCertificateFile = Settings.GetUseTls().GetCaCertFile();
-            result = NKikimrLdap::SetOption(*ld, NKikimrLdap::EOption::TLS_CACERTFILE, caCertificateFile.c_str());
+            result = NKikimrLdap::SetOption(nullptr, NKikimrLdap::EOption::TLS_CACERTFILE, caCertificateFile.c_str());
             if (!NKikimrLdap::IsSuccess(result)) {
                 NKikimrLdap::Unbind(*ld);
                 return {{NKikimrLdap::ErrorToStatus(result),
                         {.Message = "Could not set LDAP ca certificate file \"" + caCertificateFile + "\": " + NKikimrLdap::ErrorToString(result),
                         .Retryable = NKikimrLdap::IsRetryableError(result)}}};
             }
+        }
+
+        *ld = NKikimrLdap::Init(host, port);
+        if (*ld == nullptr) {
+            return {{TEvLdapAuthProvider::EStatus::UNAVAILABLE,
+                    {.Message = "Could not initialize LDAP connection for host: " + host + ", port: " + ToString(port) + ". " + NKikimrLdap::LdapError(*ld),
+                    .Retryable = false}}};
         }
 
         result = NKikimrLdap::SetProtocolVersion(*ld);
