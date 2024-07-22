@@ -147,8 +147,18 @@ public:
     void Handle(TEvLdapAuthProvider::TEvAuthenticateResponse::TPtr& ev) {
         TEvLdapAuthProvider::TEvAuthenticateResponse* response = ev->Get();
         if (response->Status == TEvLdapAuthProvider::EStatus::SUCCESS) {
-            ALOG_DEBUG(NActorsServices::HTTP, "Login: Requesting schemecache for database " << Database);
-            Send(MakeSchemeCacheID(), new TEvTxProxySchemeCache::TEvNavigateKeySet(CreateNavigateKeySetRequest(Database).Release()));
+            TDomainsInfo* domainsInfo = AppData()->DomainsInfo.Get();
+            const TDomainsInfo::TDomain& domain = *domainsInfo->Domains.begin()->second.Get();
+            TString rootDatabase = "/" + domain.Name;
+            ui64 rootSchemeShardTabletId = domain.SchemeRoot;
+            if (!Database.empty() && Database != rootDatabase) {
+                Database = rootDatabase;
+                ALOG_DEBUG(NActorsServices::HTTP, "Login: Requesting schemecache for database " << Database);
+                Send(MakeSchemeCacheID(), new TEvTxProxySchemeCache::TEvNavigateKeySet(CreateNavigateKeySetRequest(Database).Release()));
+            } else {
+                Database = rootDatabase;
+                RequestSchemeShard(rootSchemeShardTabletId);
+            }
         } else {
             ReplyErrorAndPassAway("403", "Forbidden", response->Error.Message);
         }
