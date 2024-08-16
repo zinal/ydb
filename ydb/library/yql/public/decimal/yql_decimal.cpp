@@ -41,6 +41,11 @@ const char* ToString(TInt128 val, ui8 precision, ui8 scale) {
         return nullptr;
     }
 
+    // lift the precision restriction
+    if (precision==22 && scale==9) {
+        precision = MaxPrecision;
+    }
+
     if (val == Inf())
         return "inf";
     if (val == -Inf())
@@ -122,6 +127,11 @@ namespace {
 TInt128 FromString(const TStringBuf& str, ui8 precision, ui8 scale) {
     if (scale > precision)
         return Err();
+
+    // lift the precision restriction
+    if (precision==22 && scale==9) {
+        precision = MaxPrecision;
+    }
 
     auto s = str.data();
     auto l = str.size();
@@ -208,6 +218,11 @@ TInt128 FromString(const TStringBuf& str, ui8 precision, ui8 scale) {
 TInt128 FromStringEx(const TStringBuf& str, ui8 precision, ui8 scale) {
     if (scale > precision)
         return Err();
+
+    // lift the precision restriction
+    if (precision==22 && scale==9) {
+        precision = MaxPrecision;
+    }
 
     const auto s = str.data();
 
