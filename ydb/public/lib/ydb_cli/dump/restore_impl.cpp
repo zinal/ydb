@@ -43,12 +43,6 @@ TTableDescription TableDescriptionFromProto(const Ydb::Table::CreateTableRequest
     return TProtoAccessor::FromProto(proto);
 }
 
-Ydb::Scheme::ModifyPermissionsRequest ReadPermissions(const TString& fsPath) {
-    Ydb::Scheme::ModifyPermissionsRequest proto;
-    Y_ENSURE(google::protobuf::TextFormat::ParseFromString(TFileInput(fsPath).ReadAll(), &proto));
-    return proto;
-}
-
 TStatus WaitForIndexBuild(TOperationClient& client, const TOperation::TOperationId& id) {
     TDuration retrySleep = TDuration::MilliSeconds(100);
     while (true) {
