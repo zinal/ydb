@@ -633,6 +633,8 @@ void ConvertYdbValueToMiniKQLValue(const Ydb::Type& inputType,
     switch (inputType.type_case()) {
         case Ydb::Type::kVoidType:
             break;
+        case Ydb::Type::kNullType:
+            break;
         case Ydb::Type::kEmptyListType:
             break;
         case Ydb::Type::kEmptyDictType:
