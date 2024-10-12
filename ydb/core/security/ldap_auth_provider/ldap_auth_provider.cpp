@@ -257,6 +257,11 @@ private:
                             + NKikimrLdap::LdapError(*request.Ld),
                     .Retryable = false}}};
         }
+        if (request.Password.empty()) {
+            return {{TEvLdapAuthProvider::EStatus::BAD_REQUEST,
+                    {.Message = "Authentication requires a password",
+                    .Retryable = false}}};
+        }
         TEvLdapAuthProvider::TError error;
         int result = NKikimrLdap::Bind(*request.Ld, dn, request.Password);
         if (!NKikimrLdap::IsSuccess(result)) {
