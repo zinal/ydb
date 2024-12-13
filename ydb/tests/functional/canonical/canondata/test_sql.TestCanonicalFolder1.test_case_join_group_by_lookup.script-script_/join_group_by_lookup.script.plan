@@ -91,8 +91,18 @@
                                                                 "PlanNodeId": 13,
                                                                 "Plans": [
                                                                     {
-                                                                        "Node Type": "UnionAll",
-                                                                        "PlanNodeId": 12,
+                                                                        "Columns": [
+                                                                            "Group",
+                                                                            "Value"
+                                                                        ],
+                                                                        "E-Cost": "0",
+                                                                        "E-Rows": "0",
+                                                                        "E-Size": "0",
+                                                                        "LookupKeyColumns": [
+                                                                            "Group"
+                                                                        ],
+                                                                        "Node Type": "TableLookupJoin",
+                                                                        "PlanNodeId": 5,
                                                                         "PlanNodeType": "Connection",
                                                                         "Plans": [
                                                                             {

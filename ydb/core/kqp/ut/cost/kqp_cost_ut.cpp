@@ -22,7 +22,7 @@ static NKikimrConfig::TAppConfig GetAppConfig(bool sourceRead, bool streamLookup
 
 static NYdb::NTable::TExecDataQuerySettings GetDataQuerySettings() {
     NYdb::NTable::TExecDataQuerySettings execSettings;
-    execSettings.CollectQueryStats(ECollectQueryStatsMode::Basic);
+    execSettings.CollectQueryStats(ECollectQueryStatsMode::Full);
     return execSettings;
 }
 
@@ -95,10 +95,10 @@ Y_UNIT_TEST_SUITE(KqpCost) {
         runtime->SetLogPriority(NKikimrServices::KQP_GATEWAY, NActors::NLog::PRI_DEBUG);
         runtime->SetLogPriority(NKikimrServices::KQP_RESOURCE_MANAGER, NActors::NLog::PRI_DEBUG);
         //runtime->SetLogPriority(NKikimrServices::LONG_TX_SERVICE, NActors::NLog::PRI_DEBUG);
-        runtime->SetLogPriority(NKikimrServices::TX_COLUMNSHARD, NActors::NLog::PRI_TRACE);
-        runtime->SetLogPriority(NKikimrServices::TX_COLUMNSHARD_SCAN, NActors::NLog::PRI_DEBUG);
-        runtime->SetLogPriority(NKikimrServices::TX_CONVEYOR, NActors::NLog::PRI_DEBUG);
-        runtime->SetLogPriority(NKikimrServices::TX_DATASHARD, NActors::NLog::PRI_DEBUG);
+        // runtime->SetLogPriority(NKikimrServices::TX_COLUMNSHARD, NActors::NLog::PRI_TRACE);
+        // runtime->SetLogPriority(NKikimrServices::TX_COLUMNSHARD_SCAN, NActors::NLog::PRI_DEBUG);
+        // runtime->SetLogPriority(NKikimrServices::TX_CONVEYOR, NActors::NLog::PRI_DEBUG);
+        // runtime->SetLogPriority(NKikimrServices::TX_DATASHARD, NActors::NLog::PRI_DEBUG);
         //runtime->SetLogPriority(NKikimrServices::BLOB_CACHE, NActors::NLog::PRI_DEBUG);
         //runtime->SetLogPriority(NKikimrServices::GRPC_SERVER, NActors::NLog::PRI_DEBUG);
     }
@@ -391,8 +391,8 @@ Y_UNIT_TEST_SUITE(KqpCost) {
         UNIT_ASSERT_VALUES_EQUAL(readsByTable.at("/Root/Join1_1").second, 136);
     }
 
-    Y_UNIT_TEST_TWIN(RangeFullScan, SourceRead) {
-        TKikimrRunner kikimr(GetAppConfig(SourceRead));
+    Y_UNIT_TEST(AAARangeFullScan) {
+        TKikimrRunner kikimr(GetAppConfig());
 
         auto db = kikimr.GetTableClient();
         auto session = db.CreateSession().GetValueSync().GetSession();
@@ -405,6 +405,9 @@ Y_UNIT_TEST_SUITE(KqpCost) {
 
         auto result = session.ExecuteDataQuery(query, txControl, GetDataQuerySettings()).ExtractValueSync();
         UNIT_ASSERT_VALUES_EQUAL(result.GetStatus(), EStatus::SUCCESS);
+
+        Cerr << "PONOS" << Endl;
+        Cerr << result.GetQueryPlan() << Endl;
 
         CompareYson(R"(
             [
