@@ -81,8 +81,11 @@ struct TOptimizerStatistics {
     std::shared_ptr<IProviderStatistics> Specific;
     std::shared_ptr<TVector<TString>> Labels = {};
 
+    TOptimizerStatistics& operator=(TOptimizerStatistics&&) = default;
+    TOptimizerStatistics(const TOptimizerStatistics&) = default;
+    TOptimizerStatistics& operator=(const TOptimizerStatistics&) = default;
+    TOptimizerStatistics() = default;
     TOptimizerStatistics(TOptimizerStatistics&&) = default;
-    TOptimizerStatistics() {}
 
     TOptimizerStatistics(
         EStatisticsType type,
