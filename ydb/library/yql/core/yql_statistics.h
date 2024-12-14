@@ -93,7 +93,7 @@ struct TOptimizerStatistics {
         TIntrusivePtr<TKeyColumns> keyColumns = {},
         TIntrusivePtr<TColumnStatMap> columnMap = {},
         EStorageType storageType = EStorageType::NA,
-        std::unique_ptr<IProviderStatistics> specific = nullptr);
+        std::shared_ptr<IProviderStatistics> specific = nullptr);
 
     TOptimizerStatistics& operator+=(const TOptimizerStatistics& other);
     bool Empty() const;
