@@ -159,6 +159,7 @@ TExprBase KqpBuildTopStageRemoveSort(
     bool allowStageMultiUsage,
     bool ruleEnabled
 ) {
+    Y_UNUSED(optCtx);
     if (!ruleEnabled) {
         return node;
     }
