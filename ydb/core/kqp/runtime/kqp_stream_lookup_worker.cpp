@@ -21,7 +21,7 @@ std::vector<std::pair<ui64, TOwnedTableRange>> GetRangePartitioning(const TKqpSt
 
     size_t idxStart = 0;
     size_t idxFinish = partitionInfo->size();
-    while ((idxFinish - idxStart) > 2) {
+    while ((idxFinish - idxStart) > 1) {
         size_t idxCur = (idxFinish - idxStart) / 2;
         int cmp = CompareTypedCellVectors
             ( (*partitionInfo)[idxCur].Range->EndKeyPrefix.GetCells().data(),
@@ -33,6 +33,11 @@ std::vector<std::pair<ui64, TOwnedTableRange>> GetRangePartitioning(const TKqpSt
         } else {
             idxFinish = idxCur;
         }
+    }
+    if (idxStart > 0) {
+        idxStart -= 1;
+    } else if (idxStart >= partitionInfo->size()) {
+        idxStart = partitionInfo->size() - 1;
     }
 
     std::vector<TCell> minusInf(keyColumnTypes.size());
