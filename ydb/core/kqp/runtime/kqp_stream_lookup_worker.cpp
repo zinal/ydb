@@ -19,10 +19,25 @@ std::vector<std::pair<ui64, TOwnedTableRange>> GetRangePartitioning(const TKqpSt
 
     YQL_ENSURE(partitionInfo);
 
-    std::vector<TCell> minusInf(keyColumnTypes.size());
+    size_t idxStart = 0;
+    size_t idxFinish = partitionInfo->size();
+    while ((idxFinish - idxStart) > 2) {
+        size_t idxCur = (idxFinish - idxStart) / 2;
+        int cmp = CompareTypedCellVectors
+            ( (*partitionInfo)[idxCur].Range->EndKeyPrefix.GetCells().data(),
+              range.From.data(),
+              keyColumnTypes.data(),
+              keyColumnTypes.size() );
+        if (cmp < 0) {
+            idxStart = idxCur + 1;
+        } else {
+            idxFinish = idxCur;
+        }
+    }
 
+    std::vector<TCell> minusInf(keyColumnTypes.size());
     std::vector<std::pair<ui64, TOwnedTableRange>> rangePartition;
-    for (size_t idx = 0; idx < partitionInfo->size(); ++idx) {
+    for (size_t idx = idxStart; idx < partitionInfo->size(); ++idx) {
         TTableRange partitionRange{
             idx == 0 ? minusInf : (*partitionInfo)[idx - 1].Range->EndKeyPrefix.GetCells(),
             idx == 0 ? true : !(*partitionInfo)[idx - 1].Range->IsInclusive,
@@ -110,6 +125,12 @@ TKqpStreamLookupWorker::TKqpStreamLookupWorker(NKikimrKqp::TKqpStreamLookupSetti
             column.GetTypeInfo().GetPgTypeMod()
         });
     }
+
+    KeyColumnTypes.resize(KeyColumns.size());
+    for (const auto& [_, columnInfo] : KeyColumns) {
+        YQL_ENSURE(columnInfo.KeyOrder < static_cast<i64>(KeyColumnTypes.size()));
+        KeyColumnTypes[columnInfo.KeyOrder] = columnInfo.PType;
+    }
 }
 
 TKqpStreamLookupWorker::~TKqpStreamLookupWorker() {
@@ -123,14 +144,8 @@ TTableId TKqpStreamLookupWorker::GetTableId() const {
     return TableId;
 }
 
-std::vector<NScheme::TTypeInfo> TKqpStreamLookupWorker::GetKeyColumnTypes() const {
-    std::vector<NScheme::TTypeInfo> keyColumnTypes(KeyColumns.size());
-    for (const auto& [_, columnInfo] : KeyColumns) {
-        YQL_ENSURE(columnInfo.KeyOrder < static_cast<i64>(keyColumnTypes.size()));
-        keyColumnTypes[columnInfo.KeyOrder] = columnInfo.PType;
-    }
-
-    return keyColumnTypes;
+const std::vector<NScheme::TTypeInfo>& TKqpStreamLookupWorker::GetKeyColumnTypes() const {
+    return KeyColumnTypes;
 }
 
 class TKqpLookupRows : public TKqpStreamLookupWorker {
