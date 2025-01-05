@@ -36,7 +36,7 @@ std::vector<std::pair<ui64, TOwnedTableRange>> GetRangePartitioning(const TKqpSt
     std::vector<TCell> minusInf(keyColumnTypes.size());
 
     std::vector<std::pair<ui64, TOwnedTableRange>> rangePartition;
-    for (size_t idx = 0; idx < partitionInfo->size(); ++idx) {
+    for (size_t idx = idxStart; idx < partitionInfo->size(); ++idx) {
         TTableRange partitionRange{
             idx == 0 ? minusInf : (*partitionInfo)[idx - 1].Range->EndKeyPrefix.GetCells(),
             idx == 0 ? true : !(*partitionInfo)[idx - 1].Range->IsInclusive,
@@ -201,6 +201,12 @@ TKqpStreamLookupWorker::TKqpStreamLookupWorker(NKikimrKqp::TKqpStreamLookupSetti
             column.GetTypeInfo().GetPgTypeMod()
         });
     }
+
+    KeyColumnTypes.resize(KeyColumns.size());
+    for (const auto& [_, columnInfo] : KeyColumns) {
+        YQL_ENSURE(columnInfo.KeyOrder < static_cast<i64>(KeyColumnTypes.size()));
+        KeyColumnTypes[columnInfo.KeyOrder] = columnInfo.PType;
+    }
 }
 
 TKqpStreamLookupWorker::~TKqpStreamLookupWorker() {
@@ -212,16 +218,6 @@ std::string TKqpStreamLookupWorker::GetTablePath() const {
 
 TTableId TKqpStreamLookupWorker::GetTableId() const {
     return TableId;
-}
-
-std::vector<NScheme::TTypeInfo> TKqpStreamLookupWorker::GetKeyColumnTypes() const {
-    std::vector<NScheme::TTypeInfo> keyColumnTypes(KeyColumns.size());
-    for (const auto& [_, columnInfo] : KeyColumns) {
-        YQL_ENSURE(columnInfo.KeyOrder < static_cast<i64>(keyColumnTypes.size()));
-        keyColumnTypes[columnInfo.KeyOrder] = columnInfo.PType;
-    }
-
-    return keyColumnTypes;
 }
 
 class TKqpLookupRows : public TKqpStreamLookupWorker {
