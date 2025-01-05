@@ -279,6 +279,8 @@ public:
         bool sizeLimitExceeded = false;
         batch.clear();
 
+        std::vector<bool> systemColumnFlags;
+
         while (!ReadResults.empty() && !sizeLimitExceeded) {
             auto& result = ReadResults.front();
             for (; result.UnprocessedResultRow < result.ReadResult->Get()->GetRowsCount(); ++result.UnprocessedResultRow) {
@@ -288,11 +290,18 @@ public:
                 NUdf::TUnboxedValue* rowItems = nullptr;
                 auto row = HolderFactory.CreateDirectArrayHolder(Columns.size(), rowItems);
 
+                if (systemColumnFlags.empty()) {
+                    systemColumnFlags.reserve(Columns.size());
+                    for (size_t colIndex = 0; colIndex < Columns.size(); ++colIndex) {
+                        systemColumnFlags.push_back(IsSystemColumn(Columns[colIndex].Name));
+                    }
+                }
+
                 i64 rowSize = 0;
                 i64 storageRowSize = 0;
                 for (size_t colIndex = 0, resultColIndex = 0; colIndex < Columns.size(); ++colIndex) {
                     const auto& column = Columns[colIndex];
-                    if (IsSystemColumn(column.Name)) {
+                    if (systemColumnFlags[colIndex]) {
                         NMiniKQL::FillSystemColumn(rowItems[colIndex], result.ShardId, column.Id, column.PType);
                         rowSize += sizeof(NUdf::TUnboxedValue);
                     } else {
