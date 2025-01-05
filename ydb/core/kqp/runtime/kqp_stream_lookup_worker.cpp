@@ -22,7 +22,7 @@ std::vector<std::pair<ui64, TOwnedTableRange>> GetRangePartitioning(const TKqpSt
     size_t idxStart = 0;
     size_t idxFinish = partitionInfo->size();
     while ((idxFinish - idxStart) > 1) {
-        size_t idxCur = (idxFinish - idxStart) / 2;
+        size_t idxCur = (idxFinish + idxStart) / 2;
         int cmp = CompareTypedCellVectors
             ( (*partitionInfo)[idxCur].Range->EndKeyPrefix.GetCells().data(),
               range.From.data(),
