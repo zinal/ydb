@@ -374,6 +374,8 @@ public:
 
         std::vector<bool> systemColumnFlags;
 
+        std::vector<bool> systemColumnFlags;
+
         while (!ReadResults.empty() && !sizeLimitExceeded) {
             auto& result = ReadResults.front();
             for (; result.UnprocessedResultRow < result.ReadResult->Get()->GetRowsCount(); ++result.UnprocessedResultRow) {
