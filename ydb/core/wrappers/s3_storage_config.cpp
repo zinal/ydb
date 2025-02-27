@@ -44,7 +44,7 @@ public:
 };
 
 Aws::Client::ClientConfiguration TS3ExternalStorageConfig::ConfigFromSettings(const NKikimrSchemeOp::TS3Settings& settings) {
-    Aws::Client::ClientConfiguration config;
+    Aws::Client::ClientConfiguration config(nullptr, true);
 
     config.endpointOverride = settings.GetEndpoint();
     if (settings.HasConnectionTimeoutMs()) {
@@ -106,7 +106,7 @@ namespace NPrivate {
 
 template <class TSettings>
 Aws::Client::ClientConfiguration ConfigFromSettings(const TSettings& settings) {
-    Aws::Client::ClientConfiguration config;
+    Aws::Client::ClientConfiguration config(nullptr, true);
 
     // get default value from proto
     auto threadsCount = NKikimrSchemeOp::TS3Settings::default_instance().GetExecutorThreadsCount();
