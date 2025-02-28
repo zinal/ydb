@@ -2,6 +2,8 @@ LIBRARY()
 
 SRCS(
     actor_activity_names.cpp
+    auth.h
+    auth.cpp
     appdata.h
     appdata.cpp
     backtrace.h
