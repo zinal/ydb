@@ -233,11 +233,24 @@ bool ReadPDiskFormatInfo(const TString &path, const NPDisk::TMainKey &mainKey, T
 }
 
 void ObliterateDisk(TString path) {
-    TFile f(path, OpenAlways | RdWr);
-    f.Flock(LOCK_EX | LOCK_NB);
+    TFile f(path, OpenExisting | RdWr);
+    if (0!=f.Flock(LOCK_EX | LOCK_NB)) {
+        ythrow TFileError() << "can't lock the device " << path;
+    }
+
+    constexpr GB_BYTES = 4096L * 262144L;
+    constexpr GB_BLOCKS = GB_BYTES / NPDisk::FormatSectorSize;
+    i64 sz = f.GetLength();
+    if (sz <= GB_BYTES) {
+        ythrow TFileError() << "illegal size " << sz " for device " << path;
+    }
+    i64 writePos = sz - GB_BYTES;
 
     TVector<ui8> zeros(NPDisk::FormatSectorSize * NPDisk::ReplicationFactor, 0);
     f.Pwrite(zeros.data(), zeros.size(), 0);
+    for (i64 i=0; i<GB_BLOCKS; ++i) {
+        f.Pwrite(zeros.data(), NPDisk::FormatSectorSize, writePos + (i * NPDisk::FormatSectorSize));
+    }
     f.Flush();
 }
 
