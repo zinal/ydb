@@ -236,8 +236,8 @@ void ObliterateDisk(TString path) {
     TFile f(path, OpenExisting | RdWr);
     f.Flock(LOCK_EX | LOCK_NB);
 
-    constexpr GB_BYTES = 4096L * 262144L;
-    constexpr GB_BLOCKS = GB_BYTES / NPDisk::FormatSectorSize;
+    constexpr i64 GB_BYTES = 4096L * 262144L;
+    constexpr i64 GB_BLOCKS = GB_BYTES / NPDisk::FormatSectorSize;
     i64 sz = f.GetLength();
     if (sz <= GB_BYTES) {
         ythrow TFileError() << "illegal size " << sz << " for device " << path;
