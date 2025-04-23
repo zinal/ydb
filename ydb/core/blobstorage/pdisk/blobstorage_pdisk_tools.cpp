@@ -250,7 +250,7 @@ void ObliterateDisk(TString path) {
     f.Pwrite(zeros.data(), zeros.size(), 0);
 //#if defined(YDB_DISABLE_PDISK_ENCRYPTION)
     // for non-encrypted pdisks the trailing gigabyte has to be cleared
-    ui64 writePos = sz - GB_BYTES;
+    ui64 writePos = diskSizeBytes - GB_BYTES;
     for (ui64 i=0; i<GB_BLOCKS; ++i) {
         f.Pwrite(zeros.data(), NPDisk::FormatSectorSize, (i64)(writePos + (i * NPDisk::FormatSectorSize)));
     }
