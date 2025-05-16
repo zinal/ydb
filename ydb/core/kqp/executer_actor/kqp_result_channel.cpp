@@ -157,7 +157,7 @@ private:
         batch.Payload = std::move(computeData.Payload);
 
         TKqpProtoBuilder protoBuilder{*AppData()->FunctionRegistry};
-        auto resultSet = protoBuilder.BuildYdbResultSet(std::move(batches), ItemType, ColumnOrder);
+        protoBuilder.BuildYdbResultSet(*streamEv->Record.MutableResultSet(), std::move(batches), ItemType, ColumnOrder);
 
         auto streamEv = MakeHolder<TEvKqpExecuter::TEvStreamData>();
         streamEv->Record.SetSeqNo(computeData.Proto.GetSeqNo());
