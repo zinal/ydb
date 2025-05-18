@@ -924,7 +924,7 @@ private:
         return range.From.subspan(0, LookupKeyColumns.size());
     }
 
-    NMiniKQL::TStructType* GetLeftRowType() const {
+    NMiniKQL::TStructType* GetLeftRowType() {
         if (LeftRowType) {
             return LeftRowType;
         }
