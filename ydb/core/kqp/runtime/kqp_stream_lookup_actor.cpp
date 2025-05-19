@@ -462,8 +462,13 @@ private:
 
         NUdf::EFetchStatus status;
         NUdf::TUnboxedValue row;
+        constexpr size_t peakMemory = 100 * 1024 * 1024;
+        unsigned capturedRows = 0;
         while ((status = Input.Fetch(row)) == NUdf::EFetchStatus::Ok) {
             StreamLookupWorker->AddInputRow(std::move(row));
+            if (++capturedRows > 500 || guard.GetMutex()->GetUsed() > peakMemory) {
+                break;
+            }
         }
 
         return status;
