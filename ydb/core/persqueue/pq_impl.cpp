@@ -679,10 +679,6 @@ void TPersQueue::HandleTransactionsReadResponse(NKikimrClient::TResponse&& resp,
         status != NKikimrProto::NODATA) {
         ok = false;
     }
-    if (!ok) {
-        PQ_LOG_ERROR_AND_DIE("Transactions read error: " << resp.ShortDebugString());
-        return;
-    }
 
     TransactionsReadResults.emplace_back(std::move(result));
 
