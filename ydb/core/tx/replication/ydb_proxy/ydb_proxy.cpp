@@ -451,7 +451,7 @@ class TYdbProxy: public TBaseProxyActor<TYdbProxy> {
 
     static TCommonClientSettings MakeSettings(const TString& endpoint, const TString& database, bool ssl) {
         const char* certFile = "/etc/ssl/certs/ca-certificates.crt";
-        if (! TFileStat(certFile).isFile()) {
+        if (! TFileStat(certFile).IsFile()) {
             certFile = "/etc/ssl/certs/ca-bundle.crt";
         }
         return TCommonClientSettings()
