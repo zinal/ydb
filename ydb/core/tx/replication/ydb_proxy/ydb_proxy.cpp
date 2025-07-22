@@ -12,6 +12,7 @@
 
 #include <util/generic/hash_set.h>
 #include <util/string/join.h>
+#include <util/system/fstat.h>
 
 #include <memory>
 #include <mutex>
@@ -309,7 +310,9 @@ class TYdbProxy: public TBaseProxyActor<TYdbProxy> {
         if (base.CredentialsProviderFactory_) {
             derived.CredentialsProviderFactory(*base.CredentialsProviderFactory_);
         }
-
+        if (base.SslCredentials_) {
+            derived.SslCredentials_ = base.SslCredentials_;
+        }
         return derived;
     }
 
@@ -447,11 +450,15 @@ class TYdbProxy: public TBaseProxyActor<TYdbProxy> {
     }
 
     static TCommonClientSettings MakeSettings(const TString& endpoint, const TString& database, bool ssl) {
+        const char* certFile = "/etc/ssl/certs/ca-certificates.crt";
+        if (! TFileStat(certFile).isFile()) {
+            certFile = "/etc/ssl/certs/ca-bundle.crt";
+        }
         return TCommonClientSettings()
             .DiscoveryEndpoint(endpoint)
             .DiscoveryMode(EDiscoveryMode::Async)
             .Database(database)
-            .SslCredentials(ssl);
+            .SslCredentials(TSslCredentials(ssl, TFileInput(certFile).ReadAll()));
     }
 
     static TCommonClientSettings MakeSettings(const TString& endpoint, const TString& database, bool ssl, const TString& token) {
