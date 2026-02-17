@@ -91,6 +91,7 @@ void TPartitionActor::HandleControllerAllocateDDiskBlockGroupResult(
 
         auto fastPathService =
             std::make_shared<NYdb::NBS::NBlockStore::TFastPathService>(
+                TActivationContext::ActorSystem(),
                 SelfId().Hash(),   // tabletId
                 1,                 // generation
                 std::move(ddiskIds),
@@ -125,10 +126,10 @@ void TPartitionActor::HandleControllerAllocateDDiskBlockGroupResult(
                 .BlockSize = blockSize,
                 .BlocksCount = blockCount,
                 .VhostQueuesCount = 1};
-            // service->VhostServer->StartEndpoint(
-            //     std::move(socketPath),
-            //     fastPathService,
-            //     options);
+            service->VhostServer->StartEndpoint(
+                std::move(socketPath),
+                fastPathService,
+                options);
         }
 
         LOG_INFO(

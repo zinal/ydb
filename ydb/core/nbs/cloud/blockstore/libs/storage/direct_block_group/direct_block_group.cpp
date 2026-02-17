@@ -10,13 +10,15 @@ using namespace NThreading;
 ////////////////////////////////////////////////////////////////////////////////
 
 TDirectBlockGroup::TDirectBlockGroup(
+    NActors::TActorSystem* actorSystem,
     ui64 tabletId,
     ui32 generation,
     TVector<NBsController::TDDiskId> ddisksIds,
     TVector<NBsController::TDDiskId> persistentBufferDDiskIds,
     ui32 blockSize,
     ui64 blocksCount)
-    : TabletId(tabletId)
+    : ActorSystem(actorSystem)
+    , TabletId(tabletId)
     , Generation(generation)
     , BlockSize(blockSize)
     , BlocksCount(blocksCount)
@@ -132,6 +134,7 @@ TDirectBlockGroup::WriteBlocksLocal(
     Y_UNUSED(callContext);
 
     auto requestHandler = std::make_shared<TWriteRequestHandler>(
+        ActorSystem,
         std::move(request),
         std::move(traceId),
         TabletId);
@@ -192,12 +195,9 @@ void TDirectBlockGroup::HandleWritePersistentBufferResult(
             }
 
             RequestBlockFlush(*requestHandler);
-            requestHandler->SetResponse();
+            requestHandler->SetResponse(MakeError(S_OK));
 
             requestHandler->Span.EndOk();
-            if (WriteBlocksReplyCallback) {
-                WriteBlocksReplyCallback(true);
-            }
         }
     } else {
         // TODO: add error handling
@@ -207,11 +207,7 @@ void TDirectBlockGroup::HandleWritePersistentBufferResult(
         requestHandler->Span.EndError(
             "HandleWritePersistentBufferResult failed");
 
-        if (WriteBlocksReplyCallback) {
-            WriteBlocksReplyCallback(
-                result.GetStatus() ==
-                NKikimrBlobStorage::NDDisk::TReplyStatus::OK);
-        }
+        requestHandler->SetResponse(MakeError(E_FAIL, result.GetErrorReason()));
     }
 }
 
@@ -224,6 +220,7 @@ void TDirectBlockGroup::RequestBlockFlush(
 
     for (size_t i = 0; i < 3; i++) {
         auto syncRequestHandler = std::make_shared<TSyncRequestHandler>(
+            ActorSystem,
             requestHandler.GetStartIndex(),
             i,   // persistentBufferIndex
             blockMeta.LsnByPersistentBufferIndex[i],
@@ -311,6 +308,7 @@ void TDirectBlockGroup::RequestBlockErase(
         NKikimrBlobStorage::NDDisk::TEvErasePersistentBufferResult>;
 
     auto eraseRequestHandler = std::make_shared<TEraseRequestHandler>(
+        ActorSystem,
         requestHandler.GetStartIndex(),
         requestHandler.GetPersistentBufferIndex(),
         requestHandler.GetLsn(),
@@ -377,15 +375,15 @@ TDirectBlockGroup::ReadBlocksLocal(
     Y_UNUSED(callContext);
 
     auto requestHandler = std::make_shared<TReadRequestHandler>(
+        ActorSystem,
         std::move(request),
         std::move(traceId),
         TabletId);
 
     auto startIndex = requestHandler->GetStartIndex();
 
-    // Block is not writed
-    if (!BlocksMeta[startIndex].IsWritten())
-    {
+    // Block is not written
+    if (!BlocksMeta[startIndex].IsWritten()) {
         auto data = requestHandler->GetData();
         if (auto guard = data.Acquire()) {
             const auto& sglist = guard.Get();
@@ -395,13 +393,9 @@ TDirectBlockGroup::ReadBlocksLocal(
             Y_ABORT_UNLESS(false);
         }
 
-        requestHandler->SetResponse();
+        requestHandler->SetResponse(MakeError(S_OK));
 
         requestHandler->Span.EndOk();
-        if (ReadBlocksReplyCallback) {
-            ReadBlocksReplyCallback(true);
-        }
-
         return requestHandler->GetFuture();
     }
 
@@ -478,12 +472,9 @@ void TDirectBlockGroup::HandleReadResult(
         requestHandler->ChildSpanEndOk(storageRequestId);
 
         if (requestHandler->IsCompleted(storageRequestId)) {
-            requestHandler->SetResponse();
+            requestHandler->SetResponse(MakeError(S_OK));
 
             requestHandler->Span.EndOk();
-            if (ReadBlocksReplyCallback) {
-                ReadBlocksReplyCallback(true);
-            }
         }
     } else {
         // TODO: add error handling
@@ -492,9 +483,7 @@ void TDirectBlockGroup::HandleReadResult(
             "HandleReadResult failed");
         requestHandler->Span.EndError("HandleReadResult failed");
 
-        if (ReadBlocksReplyCallback) {
-            ReadBlocksReplyCallback(false);
-        }
+        requestHandler->SetResponse(MakeError(E_FAIL, result.GetErrorReason()));
     }
 }
 

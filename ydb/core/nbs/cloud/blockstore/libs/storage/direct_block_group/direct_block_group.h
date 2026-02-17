@@ -27,11 +27,6 @@ public:
         TCallContextPtr callContext,
         std::shared_ptr<TWriteBlocksLocalRequest> request,
         NWilson::TTraceId traceId) = 0;
-
-    virtual void SetWriteBlocksReplyCallback(
-        std::function<void(bool)> callback) = 0;
-    virtual void SetReadBlocksReplyCallback(
-        std::function<void(bool)> callback) = 0;
 };
 
 using IDirectBlockGroupPtr = std::shared_ptr<IDirectBlockGroup>;
@@ -109,7 +104,7 @@ private:
     };
 
     TMutex Lock;
-
+    NActors::TActorSystem* const ActorSystem = nullptr;
     TVector<TDDiskConnection> DDiskConnections;
     TVector<TDDiskConnection> PersistentBufferConnections;
 
@@ -122,30 +117,17 @@ private:
     TVector<TBlockMeta> BlocksMeta;
     TQueue<std::shared_ptr<TSyncRequestHandler>> SyncQueue;
 
-    std::function<void(bool)> WriteBlocksReplyCallback;
-    std::function<void(bool)> ReadBlocksReplyCallback;
-
     std::unique_ptr<IStorageTransport> StorageTransport;
 
 public:
     TDirectBlockGroup(
+        NActors::TActorSystem* actorSystem,
         ui64 tabletId,
         ui32 generation,
         TVector<NKikimr::NBsController::TDDiskId> ddisksIds,
         TVector<NKikimr::NBsController::TDDiskId> persistentBufferDDiskIds,
         ui32 blockSize,
         ui64 blocksCount);
-
-    void SetWriteBlocksReplyCallback(
-        std::function<void(bool)> callback) override
-    {
-        WriteBlocksReplyCallback = std::move(callback);
-    }
-
-    void SetReadBlocksReplyCallback(std::function<void(bool)> callback) override
-    {
-        ReadBlocksReplyCallback = std::move(callback);
-    }
 
     void EstablishConnections() override;
 
