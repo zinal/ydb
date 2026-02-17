@@ -104,14 +104,12 @@ public:
 
     void Parse(TConfig& config) override {
         TYdbSimpleCommand::Parse(config);
-
         NodeName = config.ParseResult->GetFreeArgs().at(0);
-        AdjustPath(NodeName, config);
-
         ParsedSettings.Convert(Settings);
     }
 
     int Run(TConfig& config) override {
+        AdjustPath(NodeName, config);
         NCoordination::TClient client(CreateDriver(config));
         auto result = client.CreateNode(NodeName, Settings).GetValueSync();
         NStatusHelpers::ThrowOnErrorOrPrintIssues(result);
@@ -138,14 +136,12 @@ public:
 
     void Parse(TConfig& config) override {
         TYdbSimpleCommand::Parse(config);
-
         NodeName = config.ParseResult->GetFreeArgs().at(0);
-        AdjustPath(NodeName, config);
-
         ParsedSettings.Convert(Settings);
     }
 
     int Run(TConfig& config) override {
+        AdjustPath(NodeName, config);
         NCoordination::TClient client(CreateDriver(config));
         auto result = client.AlterNode(NodeName, Settings).GetValueSync();
         NStatusHelpers::ThrowOnErrorOrPrintIssues(result);
@@ -169,8 +165,12 @@ public:
         SetFreeArgTitle(0, "<path>", "Path to drop");
     }
 
-    int Run(TConfig& config) override {
+    void Parse(TConfig& config) override {
+        TYdbSimpleCommand::Parse(config);
         NodeName = config.ParseResult->GetFreeArgs().at(0);
+    }
+
+    int Run(TConfig& config) override {
         AdjustPath(NodeName, config);
         NCoordination::TClient client(CreateDriver(config));
         auto result = client.DropNode(NodeName).GetValueSync();
