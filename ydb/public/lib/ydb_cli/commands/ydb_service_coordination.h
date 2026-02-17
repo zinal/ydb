@@ -11,25 +11,5 @@ public:
     TCommandCoordination();
 };
 
-class TCommandCoordCreate : public TYdbSimpleCommand {
-public:
-    TCommandCoordCreate();
-    void Config(TConfig& config) override;
-    int Run(TConfig& config) override;
-
-private:
-    TString NodeName;
-};
-
-class TCommandCoordDrop : public TYdbSimpleCommand {
-public:
-    TCommandCoordDrop();
-    void Config(TConfig& config) override;
-    int Run(TConfig& config) override;
-
-private:
-    TString NodeName;
-};
-
 }
 }
