@@ -1,5 +1,6 @@
 #include "ydb_service_coordination.h"
 #include <ydb/public/sdk/cpp/include/ydb-cpp-sdk/client/coordination/coordination.h>
+#include <ydb/public/lib/ydb_cli/common/normalize_path.h>
 
 namespace NYdb {
 namespace NConsoleClient {
@@ -24,6 +25,7 @@ void TCommandCoordCreate::Config(TConfig& config) {
 
 int TCommandCoordCreate::Run(TConfig& config) {
     NCoordination::TClient client(CreateDriver(config));
+    AdjustPath(Path, config);
     auto result = client.CreateNode(
         NodeName
     ).GetValueSync();
@@ -44,6 +46,7 @@ void TCommandCoordDrop::Config(TConfig& config) {
 
 int TCommandCoordDrop::Run(TConfig& config) {
     NCoordination::TClient client(CreateDriver(config));
+    AdjustPath(Path, config);
     auto result = client.DropNode(
         NodeName
     ).GetValueSync();
