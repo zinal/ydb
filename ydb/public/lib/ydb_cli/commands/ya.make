@@ -32,6 +32,7 @@ SRCS(
     ydb_service_scripting.cpp
     ydb_service_topic.cpp
     ydb_service_table.cpp
+    ydb_service_coordination.cpp
     ydb_sql.cpp
     ydb_storage_config.cpp
     ydb_tools_infer.cpp
@@ -76,6 +77,7 @@ PEERDIR(
     ydb/public/sdk/cpp/src/client/import
     ydb/public/sdk/cpp/src/client/monitoring
     ydb/public/sdk/cpp/src/client/operation
+    ydb/public/sdk/cpp/src/client/coordination
     ydb/public/sdk/cpp/src/client/persqueue_public
     ydb/public/sdk/cpp/src/client/proto
     ydb/public/sdk/cpp/src/client/scheme

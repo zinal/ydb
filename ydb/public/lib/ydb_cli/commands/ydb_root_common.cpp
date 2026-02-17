@@ -12,6 +12,7 @@
 #include "ydb_service_scripting.h"
 #include "ydb_service_table.h"
 #include "ydb_service_topic.h"
+#include "ydb_service_coordination.h"
 #include "ydb_sql.h"
 #include "ydb_tools.h"
 #include "ydb_yql.h"
@@ -111,6 +112,7 @@ TClientCommandRootCommon::TClientCommandRootCommon(const TString& name, const TC
     AddCommand(std::make_unique<TCommandTopic>());
     AddCommand(std::make_unique<TCommandWorkload>());
     AddCommand(std::make_unique<TCommandDebug>());
+    AddCommand(std::make_unique<TCommandCoordination>());
     AddHiddenCommand(std::make_unique<TCommandScripting>()); // TODO: remove in next major version
     AddHiddenCommand(std::make_unique<TCommandYql>()); // TODO: remove in next major version
     PropagateFlags(TCommandFlags{.Dangerous = false, .OnlyExplicitProfile = false});
