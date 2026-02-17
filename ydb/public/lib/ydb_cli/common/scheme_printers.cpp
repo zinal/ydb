@@ -178,8 +178,8 @@ void TTableSchemePrinter::PrintOther(const TString& relativePath, const NScheme:
     Table.AddRow()
         .Column(0, EntryTypeToString(entry.Type))
         .Column(1, entry.Owner)
-        .Column(2, "")
-        .Column(3, "")
+        .Column(2, PrettySize(entry.SizeBytes))
+        .Column(3, FormatTime(TInstant::MilliSeconds(entry.CreatedAt.PlanStep)))
         .Column(4, "")
         .Column(5, actualRelativePath);
     Changed = true;
