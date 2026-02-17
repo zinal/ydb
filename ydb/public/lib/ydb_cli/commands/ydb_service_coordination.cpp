@@ -25,7 +25,7 @@ void TCommandCoordCreate::Config(TConfig& config) {
 
 int TCommandCoordCreate::Run(TConfig& config) {
     NCoordination::TClient client(CreateDriver(config));
-    AdjustPath(Path, config);
+    AdjustPath(NodeName, config);
     auto result = client.CreateNode(
         NodeName
     ).GetValueSync();
@@ -46,7 +46,7 @@ void TCommandCoordDrop::Config(TConfig& config) {
 
 int TCommandCoordDrop::Run(TConfig& config) {
     NCoordination::TClient client(CreateDriver(config));
-    AdjustPath(Path, config);
+    AdjustPath(NodeName, config);
     auto result = client.DropNode(
         NodeName
     ).GetValueSync();
