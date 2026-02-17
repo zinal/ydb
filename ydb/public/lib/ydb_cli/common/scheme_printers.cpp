@@ -178,7 +178,7 @@ void TTableSchemePrinter::PrintOther(const TString& relativePath, const NScheme:
     Table.AddRow()
         .Column(0, EntryTypeToString(entry.Type))
         .Column(1, entry.Owner)
-        .Column(2, PrettySize(entry.SizeBytes))
+        .Column(2, entry.SizeBytes ? PrettySize(entry.SizeBytes) : "")
         .Column(3, FormatTime(TInstant::MilliSeconds(entry.CreatedAt.PlanStep)))
         .Column(4, "")
         .Column(5, actualRelativePath);
@@ -248,6 +248,12 @@ void TJsonSchemePrinter::PrintTable(const TString& relativePath, const NScheme::
 void TJsonSchemePrinter::PrintOther(const TString& relativePath, const NScheme::TSchemeEntry& entry) {
     Writer.BeginObject();
     PrintCommonInfo(relativePath, entry);
+    if (entry.SizeBytes) {
+        Writer.WriteKey("size");
+        Writer.WriteULongLong(entry.SizeBytes);
+    }
+    Writer.WriteKey("created");
+    Writer.WriteULongLong(entry.CreatedAt.PlanStep);
     Writer.EndObject();
     if (!relativePath) {
         Cout << Writer.Str() << Endl;
