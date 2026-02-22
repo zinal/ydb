@@ -694,6 +694,7 @@ void TKesusGRpcService::SetupIncomingRequests(NYdbGrpc::TLoggerPtr logger) {
     SETUP_KESUS_METHOD(AlterNode, DoAlterCoordinationNode, RLSWITCH(Rps), UNSPECIFIED, TAuditMode::Modifying(TAuditMode::TLogClassConfig::Ddl));
     SETUP_KESUS_METHOD(DropNode, DoDropCoordinationNode, RLSWITCH(Rps), UNSPECIFIED, TAuditMode::Modifying(TAuditMode::TLogClassConfig::Ddl));
     SETUP_KESUS_METHOD(DescribeNode, DoDescribeCoordinationNode, RLSWITCH(Rps), UNSPECIFIED, TAuditMode::NonModifying());
+    SETUP_KESUS_METHOD(ListSemaphores, DoListSemaphoresCoordinationNode, RLSWITCH(Rps), UNSPECIFIED, TAuditMode::NonModifying());
     SETUP_KESUS_STREAM_METHOD(Session, RLMODE(Off), UNSPECIFIED, TAuditMode::NonModifying(), NGRpcService::TEvCoordinationSessionRequest);
 
 #undef GET_LIMITER_BY_PATH
