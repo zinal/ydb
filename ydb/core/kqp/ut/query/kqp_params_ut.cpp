@@ -1472,7 +1472,7 @@ Y_UNIT_TEST_SUITE(KqpParams) {
                 TTxControl::BeginTx(TTxSettings::SerializableRW()).CommitTx(),
                 std::move(params)).ExtractValueSync();
             UNIT_ASSERT_VALUES_EQUAL_C(result.GetStatus(), EStatus::BAD_REQUEST, result.GetIssues().ToString());
-            UNIT_ASSERT_STRING_CONTAINS(result.GetIssues().ToString(), "type mismatch, expected: Type (List) { List item type: { Type (Data), schemeType: Uint32, schemeTypeId: 2 } } , actual: Type (EmptyList)");
+            UNIT_ASSERT_STRING_CONTAINS(result.GetIssues().ToString(), "type mismatch: first incompatibility at $: expected List, actual EmptyList");
         }
 
         // Test with ExecuteDataQuery directly
@@ -1491,7 +1491,7 @@ Y_UNIT_TEST_SUITE(KqpParams) {
                 SELECT * FROM `/Root/Test` WHERE Group IN $y;
             )"), TTxControl::BeginTx(TTxSettings::SerializableRW()).CommitTx(), params).ExtractValueSync();
             UNIT_ASSERT_VALUES_EQUAL_C(result.GetStatus(), EStatus::BAD_REQUEST, result.GetIssues().ToString());
-            UNIT_ASSERT_STRING_CONTAINS(result.GetIssues().ToString(), "type mismatch, expected: Type (List) { List item type: { Type (Data), schemeType: Uint32, schemeTypeId: 2 } } , actual: Type (EmptyList)");
+            UNIT_ASSERT_STRING_CONTAINS(result.GetIssues().ToString(), "type mismatch: first incompatibility at $: expected List, actual EmptyList");
         }
     }
 
@@ -1516,7 +1516,7 @@ Y_UNIT_TEST_SUITE(KqpParams) {
                 SELECT * FROM `/Root/Test` WHERE Group IN $y;
             )"), NYdb::NQuery::TTxControl::BeginTx().CommitTx(), params).ExtractValueSync();
             UNIT_ASSERT_VALUES_EQUAL_C(result.GetStatus(), EStatus::BAD_REQUEST, result.GetIssues().ToString());
-            UNIT_ASSERT_STRING_CONTAINS(result.GetIssues().ToString(), "type mismatch, expected: Type (List) { List item type: { Type (Data), schemeType: Uint32, schemeTypeId: 2 } } , actual: Type (EmptyList)");
+            UNIT_ASSERT_STRING_CONTAINS(result.GetIssues().ToString(), "type mismatch: first incompatibility at $: expected List, actual EmptyList");
         }
     }
 
