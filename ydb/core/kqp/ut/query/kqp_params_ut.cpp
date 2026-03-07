@@ -1545,7 +1545,7 @@ Y_UNIT_TEST_SUITE(KqpParams) {
 
         UNIT_ASSERT_VALUES_EQUAL_C(result.GetStatus(), EStatus::BAD_REQUEST, result.GetIssues().ToString());
         UNIT_ASSERT_STRING_CONTAINS(result.GetIssues().ToString(),
-            "Parameter $items type mismatch: first incompatibility at $[].y: expected Uint32, actual Optional");
+            "Parameter $items type mismatch: first incompatibility at $[].y: expected Uint32, actual Optional<Uint32>");
     }
 
     Y_UNIT_TEST(ListStructParameterMissingMember) {

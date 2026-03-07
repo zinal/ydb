@@ -40,6 +40,10 @@ TString DescribeType(const TType* type) {
             return TStringBuilder() << "Resource(" << static_cast<const TResourceType*>(type)->GetTag() << ")";
         case TType::EKind::Tagged:
             return TStringBuilder() << "Tagged(" << static_cast<const TTaggedType*>(type)->GetTag() << ")";
+        case TType::EKind::Optional: {
+            const auto* optionalType = static_cast<const TOptionalType*>(type);
+            return TStringBuilder() << "Optional<" << DescribeType(optionalType->GetItemType()) << ">";
+        }
         case TType::EKind::Block: {
             const auto shape = static_cast<const TBlockType*>(type)->GetShape();
             return shape == TBlockType::EShape::Scalar ? "Scalar" : "Block";
