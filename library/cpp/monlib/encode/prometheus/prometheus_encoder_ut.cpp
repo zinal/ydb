@@ -368,6 +368,29 @@ Y_UNIT_TEST_SUITE(TPrometheusEncoderTest) {
             "\n");
     }
 
+    Y_UNIT_TEST(InvalidUtf8LabelValueIsSanitized) {
+        auto result = EncodeToString([](IMetricEncoder* e) {
+            TString badValue = "ok";
+            badValue.push_back(static_cast<char>(0x80));
+            badValue += "\\\"\nend";
+
+            e->OnStreamBegin();
+            e->OnMetricBegin(EMetricType::GAUGE);
+            e->OnLabelsBegin();
+            e->OnLabel("sensor", "utf8_sanitize");
+            e->OnLabel("url", badValue);
+            e->OnLabelsEnd();
+            e->OnInt64(TInstant::Zero(), 1);
+            e->OnMetricEnd();
+            e->OnStreamEnd();
+        });
+
+        UNIT_ASSERT_STRINGS_EQUAL(result,
+            "# TYPE utf8_sanitize gauge\n"
+            "utf8_sanitize{url=\"ok?\\\\\\\"\\nend\", } 1\n"
+            "\n");
+    }
+
     Y_UNIT_TEST(CommonLables) {
         auto result = EncodeToString([](IMetricEncoder* e) {
             e->OnStreamBegin();

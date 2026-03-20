@@ -6,6 +6,7 @@
 #include <library/cpp/monlib/metrics/labels.h>
 #include <library/cpp/monlib/metrics/metric_value.h>
 
+#include <util/charset/utf8.h>
 #include <util/string/cast.h>
 #include <util/generic/hash_set.h>
 
@@ -143,7 +144,7 @@ namespace NMonitoring {
 
             void WriteLabelValue(TStringBuf value) {
                 Out_->Write('"');
-                for (char ch: value) {
+                auto writeEscapedChar = [this](char ch) {
                     if (ch == '"') {
                         Out_->Write("\\\"");
                     } else if (ch == '\\') {
@@ -152,6 +153,32 @@ namespace NMonitoring {
                         Out_->Write("\\n");
                     } else {
                         Out_->Write(ch);
+                    }
+                };
+
+                if (IsUtf(value)) {
+                    for (char ch: value) {
+                        writeEscapedChar(ch);
+                    }
+                } else {
+                    const auto* current = reinterpret_cast<const unsigned char*>(value.data());
+                    const auto* end = current + value.size();
+                    while (current < end) {
+                        wchar32 rune = 0;
+                        size_t runeLen = 0;
+                        auto status = SafeReadUTF8Char<StrictUTF8::Yes>(rune, runeLen, current, end);
+                        if (status == RECODE_OK) {
+                            for (size_t i = 0; i < runeLen; ++i) {
+                                writeEscapedChar(static_cast<char>(current[i]));
+                            }
+                            current += runeLen;
+                        } else if (status == RECODE_BROKENSYMBOL) {
+                            Out_->Write('?');
+                            ++current;
+                        } else {
+                            Out_->Write('?');
+                            break;
+                        }
                     }
                 }
                 Out_->Write('"');
