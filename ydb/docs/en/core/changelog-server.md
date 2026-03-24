@@ -1,5 +1,63 @@
 # {{ ydb-short-name }} Server changelog
 
+## Version 25.3 {#25-3}
+
+### Version 25.3.1 {#25-3-1}
+
+Release date: September 25, 2025.
+
+#### Functionality
+
+* Federated queries gained support for new external data sources: [Prometheus](https://github.com/ydb-platform/ydb/pull/17148), [Apache Iceberg](https://github.com/ydb-platform/ydb/pull/17007), [OpenSearch](https://github.com/ydb-platform/ydb/pull/18444), and [Redis](https://github.com/ydb-platform/ydb/pull/16957). YDB can also use [YDB Topics as an external source](https://github.com/ydb-platform/ydb/pull/18955), making it possible to query topic data in SQL workflows.
+* Extended external-source support for analytical scenarios: YDB can now [create external data sources for Iceberg tables](https://github.com/ydb-platform/ydb/pull/16652), and federated queries can push down [`REGEXP`](https://github.com/ydb-platform/ydb/pull/19227) and [`LIKE`](https://github.com/ydb-platform/ydb/pull/17695) predicates on `Utf8` columns, reducing data scanned by external systems.
+* Query language usability improved with support for [`SHOW CREATE TABLE`](https://github.com/ydb-platform/ydb/issues/33) and [`SHOW CREATE VIEW`](https://github.com/ydb-platform/ydb/issues/16283), including cache-mode representation in generated DDL.
+* Query optimizer improvements include [StreamLookupJoin without left-side key precomputation](https://github.com/ydb-platform/ydb/issues/27425) and [pushing filters to both sides of `LEFT JOIN`](https://github.com/ydb-platform/ydb/issues/27558).
+* Added [in-memory caching mode (`CACHE_MODE`) for table families](https://github.com/ydb-platform/ydb/issues/18691), including YQL syntax support and operational safeguards.
+* [Topic configuration export to S3](https://github.com/ydb-platform/ydb/pull/18138) and [import from S3](https://github.com/ydb-platform/ydb/pull/18214) are supported ([#18195](https://github.com/ydb-platform/ydb/issues/18195)).
+* Topic APIs were extended with [new `DescribeConsumer` output parameters](https://github.com/ydb-platform/ydb/issues/27766), and [per-partition topic metrics can now be exported into user quotas](https://github.com/ydb-platform/ydb/issues/27769).
+* Quota management and observability were expanded with [labeled resources in RateLimiter](https://github.com/ydb-platform/ydb/issues/9730), allowing more granular accounting by workload type.
+* Backup/restore capabilities in the 25.3 line were expanded with [local incremental backups v1.0](https://github.com/ydb-platform/ydb/issues/22043), [ACL preservation](https://github.com/ydb-platform/ydb/issues/11452), [integrity checksums](https://github.com/ydb-platform/ydb/issues/11459), and [VIEW backup/restore rollout](https://github.com/ydb-platform/ydb/issues/12724).
+* Compacted topics [can now be created via the Kafka API](https://github.com/ydb-platform/ydb/pull/18683), and YDB [automatically creates and removes the internal service consumer used for topic compaction](https://github.com/ydb-platform/ydb/pull/20176).
+* Topic auto-partitioning became smarter: when splitting partitions, YDB can now take per-producer write rates into account and try to distribute producers more evenly across new partitions instead of splitting traffic strictly in half ([#25458](https://github.com/ydb-platform/ydb/pull/25458)).
+* The scheduling stack was expanded, based on HDRF. YDB [re-implemented the KQP CPU scheduler on the HDRF model](https://github.com/ydb-platform/ydb/pull/19618), [enabled the new HDRF-based compute scheduler](https://github.com/ydb-platform/ydb/pull/21997), and [improved the scheduler so it does not execute more tasks than the demand allows](https://github.com/ydb-platform/ydb/pull/19893).
+* Script execution became more transparent: YDB now supports [runtime results during script execution](https://github.com/ydb-platform/ydb/pull/17421) and a dedicated [`running` status](https://github.com/ydb-platform/ydb/pull/19134) in script-execution APIs.
+* Database administration became more flexible: schema object limits such as `MAX_SHARDS` and `MAX_PATHS` can now be [changed with YQL via `ALTER DATABASE`](https://github.com/ydb-platform/ydb/pull/19580) ([#16742](https://github.com/ydb-platform/ydb/issues/16742)), and BuildIndex operations now track [creation time, end time, and initiating user SID](https://github.com/ydb-platform/ydb/pull/17751).
+* Auditability was extended: YDB now records [`ALTER/MODIFY USER` operations in the audit log](https://github.com/ydb-platform/ydb/pull/16989) and adds [YMQ events to the common YDB audit format](https://github.com/ydb-platform/ydb/pull/18333) as well as [dedicated audit log events for YMQ](https://github.com/ydb-platform/ydb/pull/21183).
+* System-view metadata handling was reworked to [store system views in SchemeShard paths](https://github.com/ydb-platform/ydb/issues/17039), improving ACL management and API consistency.
+* Secret management was expanded with the [internal secret manager redesign](https://github.com/ydb-platform/ydb/issues/23194), including schema secrets and broader `*_PATH`-based integrations for external data access.
+* Large-cluster networking improvements continue with [Node Broker Delta Protocol](https://github.com/ydb-platform/ydb/issues/11064) rollout in the 25.3 release line.
+* Storage and cluster-management capabilities were expanded. YDB added [BS Controller settings in cluster configuration](https://github.com/ydb-platform/ydb/pull/17957), [basic cluster bridging support](https://github.com/ydb-platform/ydb/pull/18297) as part of [Bridge mode (2dc)](https://github.com/ydb-platform/ydb/issues/27423), [Board reconfiguration via DistConf](https://github.com/ydb-platform/ydb/pull/18859), and [automatic StateStorage reconfiguration without full group downtime](https://github.com/ydb-platform/ydb/pull/17525).
+* Distributed Storage gained new control and sizing options: YDB introduced [`GroupSizeInUnits` for storage groups and `SlotSizeInUnits` for PDisks](https://github.com/ydb-platform/ydb/pull/19337), added a [`ydb-dstool` command to move a PDisk to another node without full data resynchronization](https://github.com/ydb-platform/ydb/pull/19684), and added [`--iam-token-file` support to `ydb-dstool`](https://github.com/ydb-platform/ydb/pull/20303). These changes are also used as part of [small-disk (8GB+) support](https://github.com/ydb-platform/ydb/issues/27432).
+* BlobStorage reliability in constrained-capacity scenarios was improved with [safe throttling for out-of-space, log-overflow, and small-blob-overflow conditions](https://github.com/ydb-platform/ydb/issues/12510).
+* Observability was improved across several subsystems: YDB added [spilling IO queue wait counters](https://github.com/ydb-platform/ydb/pull/17394), [constant-value monitoring counters for nodes, VDisks, and PDisks](https://github.com/ydb-platform/ydb/pull/18731), and [more attributes in DSProxy and VDisk spans](https://github.com/ydb-platform/ydb/pull/21010) to simplify troubleshooting.
+* Cluster and healthcheck behavior was refined: YDB [lowered the severity of `FAULTY` PDisks](https://github.com/ydb-platform/ydb/pull/17095), added [Healthcheck detection of cluster bootstrap state for configuration V2 environments](https://github.com/ydb-platform/ydb/pull/19600), and introduced [basic validation of group names](https://github.com/ydb-platform/ydb/pull/19216).
+* YDB improved placement and topology handling for large deployments by adding [a heuristic that prevents self-overloading tablets from endlessly bouncing between nodes](https://github.com/ydb-platform/ydb/pull/18376) and support for [pile identifiers in database nodes of 2-DC topologies](https://github.com/ydb-platform/ydb/pull/18988).
+* Security-related integration was improved: YDB [added the `Accept` header to the OIDC whitelist](https://github.com/ydb-platform/ydb/pull/19735).
+
+#### Performance
+
+* YDB [enabled multi-broadcast in the table service by default](https://github.com/ydb-platform/ydb/pull/17794), reducing overhead for distributed queries where broadcasting is the optimal strategy.
+* Write-path performance was improved in several places: YDB introduced [a new PDisk priority scheme that separates realtime and compaction writes](https://github.com/ydb-platform/ydb/pull/21705), [optimized the propagation of `TStorageConfig` updates to subscribers](https://github.com/ydb-platform/ydb/pull/18765), and [improved the algorithm of the new scheduler](https://github.com/ydb-platform/ydb/pull/20195).
+* Upsert operations on tables with default values are now [more efficient](https://github.com/ydb-platform/ydb/pull/20048): when possible, YDB avoids extra row reads and performs more of the work directly on shards.
+* Authentication overhead was reduced by [moving password verification into a dedicated actor instead of handling it inside `TSchemeShard` local transactions](https://github.com/ydb-platform/ydb/pull/19687).
+
+#### Bug Fixes
+
+* Fixed several correctness and stability issues in column-oriented tables, including [predicate handling in scan queries](https://github.com/ydb-platform/ydb/pull/16061), [CPU-limiter races that could return inconsistent results](https://github.com/ydb-platform/ydb/pull/20238), and [crashes or failures when altering tables with vector indexes](https://github.com/ydb-platform/ydb/pull/18121), including [`RENAME INDEX`](https://github.com/ydb-platform/ydb/pull/17982).
+* Fixed transaction-consistency issues: YDB added safeguards against [incorrect results in specific read-write transactions](https://github.com/ydb-platform/ydb/pull/18088) and resolved a bug where [conflicting read-write transactions could violate serializability after shard restarts](https://github.com/ydb-platform/ydb/pull/18234).
+* Fixed several topic and session-management issues, including [rare node failures during read-session balancing](https://github.com/ydb-platform/ydb/pull/16016), [commit-offset failures on auto-partitioned topics](https://github.com/ydb-platform/ydb/pull/20560), [unexpected `PathErrorUnknown` errors while committing offsets](https://github.com/ydb-platform/ydb/pull/20084), and a bug where [attach streams remained active after session shutdown](https://github.com/ydb-platform/ydb/pull/22298).
+* Fixed backup, restore, and replication edge cases: YDB no longer [stores destination tables and changefeeds of asynchronous replication in local backups](https://github.com/ydb-platform/ydb/pull/18401), and YDB CLI backup/restore now [handles `UUID` columns correctly](https://github.com/ydb-platform/ydb/pull/17198).
+* Fixed several Distributed Storage stability issues, including missing [encryption checks in zero-copy transfers](https://github.com/ydb-platform/ydb/pull/18698), [VDisk freezes in local recovery after failed `ChunkRead` requests](https://github.com/ydb-platform/ydb/pull/20519), and [phantom VDisks caused by races between group creation and deletion](https://github.com/ydb-platform/ydb/pull/18924).
+* Improved cluster-management safety: YDB fixed [duplicate PDisk locking attempts in CMS](https://github.com/ydb-platform/ydb/pull/19781), added a [resource-manager race fix](https://github.com/ydb-platform/ydb/pull/25412), and changed `RateLimiter` to return [`SCHEME_ERROR` instead of `INTERNAL_ERROR` for nonexistent coordination nodes or resources](https://github.com/ydb-platform/ydb/pull/16901).
+* Fixed healthcheck and maintenance corner cases by handling [unknown `StatusV2` values in VDisk healthcheck](https://github.com/ydb-platform/ydb/pull/17606), switching PDisk-state interpretation to a [less ambiguous source](https://github.com/ydb-platform/ydb/pull/17687), and adding a [BSC PDisk status intended for long-term maintenance scenarios](https://github.com/ydb-platform/ydb/pull/17920).
+* Fixed issues in Workload Manager and scheduler-related code, including [use-after-free and VERIFY failures in the CPU scheduler and CPU limiter](https://github.com/ydb-platform/ydb/pull/20157).
+* Fixed DDL usability problems for external sources and improved diagnostics for [`ALTER TABLE ... RENAME TO`](https://github.com/ydb-platform/ydb/pull/20670).
+
+#### YDB UI
+
+* Updated authentication handling for the viewer's [`whoami` and `capabilities` handlers](https://github.com/ydb-platform/ydb/pull/17942).
+* Fixed a viewer issue where [PDisk information requests could time out when the target node was disconnected or unavailable](https://github.com/ydb-platform/ydb/pull/20432).
+
 ## Version 25.2 {#25-2}
 
 ### Version 25.2.1.24 {#25-2-1-24}
