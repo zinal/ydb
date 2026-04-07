@@ -9,6 +9,8 @@
 #include <ydb/core/tablet/resource_broker.h>
 #include <util/random/random.h>
 
+#include <algorithm>
+
 namespace NKikimr {
 namespace NKqp {
 
@@ -131,6 +133,70 @@ Y_UNIT_TEST_SUITE(KqpLimits) {
             } else {
                 UNIT_ASSERT_VALUES_EQUAL_C(result.GetStatus(), EStatus::SUCCESS, result.GetIssues().ToString());
             }
+        }
+    }
+
+    Y_UNIT_TEST(StreamWritePagedUpsert) {
+        auto settings = TKikimrSettings().SetWithSampleTables(false);
+        settings.AppConfig.MutableTableServiceConfig()->SetEnableStreamWrite(false);
+
+        TKikimrRunner kikimr(settings);
+        constexpr ui32 fillShardsCount = 8;
+        constexpr ui32 rowsPerShard = 1000;
+        constexpr ui64 pageSize = 500;
+        CreateLargeTable(kikimr, rowsPerShard, 1_KB, 64_KB);
+
+        auto db = kikimr.GetQueryClient();
+
+        {
+            auto result = db.ExecuteQuery(R"(
+                CREATE TABLE `/Root/DataShard` (
+                    Key Uint64,
+                    KeyText String,
+                    Data Int64,
+                    DataText String,
+                    PRIMARY KEY (Key)
+                )
+                WITH (
+                    AUTO_PARTITIONING_MIN_PARTITIONS_COUNT = 8,
+                    PARTITION_AT_KEYS = (1000000, 2000000, 3000000, 4000000, 5000000, 6000000, 7000000)
+                );)",
+                NQuery::TTxControl::NoTx()).ExtractValueSync();
+            UNIT_ASSERT_VALUES_EQUAL_C(result.GetStatus(), EStatus::SUCCESS, result.GetIssues().ToString());
+        }
+
+        const ui64 totalRows = static_cast<ui64>(fillShardsCount) * rowsPerShard;
+        for (ui64 offset = 0; offset < totalRows; offset += pageSize) {
+            const ui64 limit = std::min(pageSize, totalRows - offset);
+
+            NYdb::TParamsBuilder paramsBuilder;
+            paramsBuilder.AddParam("$offset").Uint64(offset).Build();
+            paramsBuilder.AddParam("$limit").Uint64(limit).Build();
+            auto params = paramsBuilder.Build();
+
+            auto result = db.ExecuteQuery(R"(
+                DECLARE $offset AS Uint64;
+                DECLARE $limit AS Uint64;
+
+                UPSERT INTO `/Root/DataShard`
+                SELECT * FROM `/Root/LargeTable`
+                ORDER BY Key, KeyText
+                LIMIT $limit OFFSET $offset;
+            )", NQuery::TTxControl::BeginTx().CommitTx(), params).ExtractValueSync();
+            result.GetIssues().PrintTo(Cerr);
+            UNIT_ASSERT_VALUES_EQUAL_C(result.GetStatus(), EStatus::SUCCESS, result.GetIssues().ToString());
+        }
+
+        {
+            auto result = db.ExecuteQuery(R"(
+                SELECT COUNT(*) AS C FROM `/Root/DataShard`;
+            )", NQuery::TTxControl::BeginTx().CommitTx()).ExtractValueSync();
+            UNIT_ASSERT_VALUES_EQUAL_C(result.GetStatus(), EStatus::SUCCESS, result.GetIssues().ToString());
+            const auto resultSet = result.GetResultSet(0);
+            UNIT_ASSERT_VALUES_EQUAL(resultSet.RowsCount(), 1);
+            NYdb::TResultSetParser parser(resultSet);
+            UNIT_ASSERT(parser.TryNextRow());
+            UNIT_ASSERT_VALUES_EQUAL(*parser.ColumnParser(0).GetOptionalUint64(), totalRows);
         }
     }
 
