@@ -58,6 +58,7 @@ ydb/core/client/ut TObjectStorageListingTest.TombstoneRestarts
 ydb/core/client/ut unittest.[*/*] chunk
 ydb/core/graph/shard/ut unittest.sole chunk
 ydb/core/health_check/ut THealthCheckTest.TestStateStorageBlue
+ydb/core/http_proxy/ut TestMalformedRequest.CompressedGzipContentLengthLower
 ydb/core/http_proxy/ut/inside_ydb_ut TestKinesisHttpProxy.BadRequestUnknownMethod
 ydb/core/http_proxy/ut/inside_ydb_ut TestKinesisHttpProxy.CreateDeleteStream
 ydb/core/http_proxy/ut/inside_ydb_ut TestKinesisHttpProxy.CreateDeleteStreamWithConsumer
@@ -157,7 +158,6 @@ ydb/core/kqp/ut/batch_operations KqpBatchUpdate.Large_2
 ydb/core/kqp/ut/batch_operations KqpBatchUpdate.Large_3
 ydb/core/kqp/ut/federated_query/datastreams KqpFederatedQueryDatastreams.ReadFromLocalTopicsWithAuth
 ydb/core/kqp/ut/federated_query/datastreams KqpStreamingQueriesDdl.CreateStreamingQueryUnderTimeout
-ydb/core/kqp/ut/federated_query/datastreams KqpStreamingQueriesDdl.StreamingQueryWithStreamLookupJoin-WithFeatureFlag
 ydb/core/kqp/ut/federated_query/datastreams KqpStreamingQueriesSysView.ReadSysViewWithMetadataSizeBackPressure
 ydb/core/kqp/ut/federated_query/datastreams KqpStreamingQueriesSysView.ReadSysViewWithRowCountBackPressure
 ydb/core/kqp/ut/federated_query/large_results KqpScriptExecResults.CleanupMultipleResultSets+WithResultsMeta
@@ -216,7 +216,6 @@ ydb/core/kqp/ut/scan KqpSplit.ChoosePartition+Unspecified
 ydb/core/kqp/ut/scan KqpSplit.StreamLookupJoinDeliveryProblemAfterFirstResult
 ydb/core/kqp/ut/scan KqpSplit.StreamLookupRetryAttemptForFinishedRead
 ydb/core/kqp/ut/scheme KqpAcl.AclCreateTableAs+IsOlap+UseAdmin
-ydb/core/kqp/ut/scheme KqpAcl.AclCreateTableAs-IsOlap+UseAdmin
 ydb/core/kqp/ut/scheme KqpConstraints.AlterTableAddColumnWithDefaultCancellation
 ydb/core/kqp/ut/scheme KqpScheme.ParallelDropStreamingQuery
 ydb/core/kqp/ut/scheme KqpScheme.StreamingQueriesOnServerless
@@ -272,7 +271,6 @@ ydb/core/transfer/ut/large TransferLarge.Transfer100KM_10P_RowTable
 ydb/core/transfer/ut/large TransferLarge.Transfer100KM_10P_RowTable_TopicAutoPartitioning
 ydb/core/transfer/ut/large TransferLarge.Transfer1KM_1KP_RowTable
 ydb/core/tx/columnshard/ut_schema unittest.[*/*] chunk
-ydb/core/tx/datashard/build_index/ut TTxDataShardRecomputeKMeansScan.EmptyCluster
 ydb/core/tx/datashard/build_index/ut TTxDataShardReshuffleKMeansScan.BuildToBuildWithOverlap
 ydb/core/tx/datashard/build_index/ut TTxDataShardReshuffleKMeansScan.BuildToPosting
 ydb/core/tx/datashard/build_index/ut TTxDataShardReshuffleKMeansScan.MainToBuild
@@ -346,8 +344,8 @@ ydb/core/tx/datashard/ut_stats DataShardStats.CollectKeySampleLeader-1-1
 ydb/core/tx/datashard/ut_stats DataShardStats.HasSchemaChanges_Columns
 ydb/core/tx/datashard/ut_stats DataShardStats.HasSchemaChanges_Families
 ydb/core/tx/datashard/ut_stats unittest.sole chunk
-ydb/core/tx/datashard/ut_validate_row_condition unittest.sole chunk
 ydb/core/tx/datashard/ut_volatile DataShardVolatile.DistributedWriteThenReadIteratorStream
+ydb/core/tx/schemeshard/ut_background_cleaning TSchemeshardBackgroundCleaningTest.SchemeshardBackgroundCleaningTestCreateCleanManyTables
 ydb/core/tx/schemeshard/ut_index_build_reboots unittest.[*/*] chunk
 ydb/core/tx/schemeshard/ut_restore TRestoreTests.ShouldHandleOverloadedShard
 ydb/core/tx/schemeshard/ut_restore unittest.[*/*] chunk
@@ -3788,12 +3786,10 @@ ydb/tests/fq/streaming test_streaming.py.TestStreamingInYdb.test_raw_format[Fals
 ydb/tests/fq/streaming test_streaming.py.TestStreamingInYdb.test_raw_format[False-partition_balancing]
 ydb/tests/fq/streaming test_streaming.py.TestStreamingInYdb.test_raw_format[True-no_partition_balancing]
 ydb/tests/fq/streaming test_streaming.py.TestStreamingInYdb.test_raw_format[True-partition_balancing]
-ydb/tests/functional/api test_discovery.py.TestDiscoveryExtEndpoint.test_scenario
 ydb/tests/functional/audit test_canonical_records.py.test_dstool_evict_vdisk_grpc
 ydb/tests/functional/backup_collection basic_user_scenarios.py.TestBackupCollectionServiceObjectsRotation.test_service_schema_objects_cleanup_on_rotate
 ydb/tests/functional/backup_collection basic_user_scenarios.py.TestFullCycleLocalBackupRestoreWIncr.test_full_cycle_local_backup_restore_with_incrementals
 ydb/tests/functional/config test_distconf.py.TestKiKiMRDistConfBasic.test_dynamic_node_start_with_seed_nodes
-ydb/tests/functional/config test_distconf_sentinel_node_status.py.TestKiKiMRDistConfSelfHealOverrides.test_state_storage
 ydb/tests/functional/config test_distconf_sentinel_node_status.py.TestKiKiMRDistConfSelfHealPileupReplicas.test_state_storage
 ydb/tests/functional/config test_distconf_sentinel_node_status.py.TestKiKiMRDistConfSelfHealReplicasSpecificVolume.test_state_storage
 ydb/tests/functional/dstool test_canonical_requests.py.Test.test_capacity_metrics
@@ -3876,7 +3872,6 @@ ydb/tests/functional/statistics test_restarts.py.test_basic
 ydb/tests/functional/tpc/large py3test.[test_tpcds.py] chunk
 ydb/tests/functional/tpc/large py3test.[test_tpch_spilling.py] chunk
 ydb/tests/functional/tpc/large test_tpcds.py.TestTpcdsS0_1.test_tpcds[14]
-ydb/tests/functional/tpc/large test_tpcds.py.TestTpcdsS0_1.test_tpcds[52]
 ydb/tests/functional/tpc/large test_tpcds.py.TestTpcdsS0_1.test_tpcds[64]
 ydb/tests/functional/tpc/large test_tpcds.py.TestTpcdsS0_1DecimalNative.test_tpcds[14]
 ydb/tests/functional/tpc/large test_tpcds.py.TestTpcdsS0_1DecimalNative.test_tpcds[64]
@@ -4007,7 +4002,6 @@ ydb/tests/functional/tpc/medium test_workload_manager.py.TestWMOltp50.test
 ydb/tests/functional/tpc/medium test_workload_manager.py.TestWMOltpAdHoc.test
 ydb/tests/functional/tpc/medium test_workload_manager.py.TestWMOltpTpchS0_1.test
 ydb/tests/functional/ydb_cli test_ydb_impex.py.TestImpex.test_big_dataset[tsv-additional_args2-row]
-ydb/tests/functional/ydb_cli test_ydb_interactive_sql.py.TestInteractiveExitCommands.test_consequence_ctrl_c_without_prompt
 ydb/tests/olap data_read_correctness.py.TestDataReadPerformanceNoIntersections.test
 ydb/tests/olap tablets_movement.py.TestTabletsMovement.test[ROW]
 ydb/tests/olap/column_compression/alter alter_compression.py.TestAlterColumnCompression.test_alter_to_compression[zstd_20_compression-algorithm=zstd,level=20]
