@@ -203,6 +203,8 @@ private:
 
         std::vector<TResultSet> resultSets;
         if (part.HasResultSet()) {
+            // TResultSet already owns extracted Arrow schema/data, so moving it
+            // preserves both value-format rows and a single Arrow response part.
             resultSets.emplace_back(part.ExtractResultSet());
         }
 
