@@ -24,6 +24,8 @@ items:
   include:
     mode: link
     path: migration/toc-migration.yaml
+- name: Low-code platforms
+  href: low-code.md
 - name: Object–relational mapping
   href: orm/index.md
   include:

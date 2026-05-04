@@ -33,6 +33,10 @@ In addition to its own native protocol, {{ ydb-name }} has a compatibility layer
 
 {% include notitle [Table of contents](migration/_includes/toc-table.md) %}
 
+## Low-code platforms {#low-code}
+
+* [Priority candidates for YDB-backed infrastructure](low-code.md)
+
 ## Object–relational mapping (ORM) {#orm}
 
 {% include notitle [Table of contents](orm/_includes/toc-table.md) %}
