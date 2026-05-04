@@ -494,3 +494,16 @@ message DescribeNodeResult {
     Ydb.Scheme.Entry self = 1;
     Config config = 2;
 }
+
+message ListSemaphoresRequest {
+    string path = 1;
+    Ydb.Operations.OperationParams operation_params = 2;
+}
+
+message ListSemaphoresResponse {
+    Ydb.Operations.Operation operation = 1;
+}
+
+message ListSemaphoresResult {
+    repeated string semaphore_names = 1;
+}
