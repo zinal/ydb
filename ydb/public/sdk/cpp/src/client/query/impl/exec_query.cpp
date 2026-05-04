@@ -211,7 +211,7 @@ struct TExecuteQueryBuffer : public TThrRefBase, TNonCopyable {
 
             if (part.HasResultSet()) {
                 auto inRs = part.ExtractResultSet();
-                auto& inRsProto = TProtoAccessor::GetProto(inRs);
+                auto& inRsProto = inRs.MutableProto();
 
                 // TODO: Use result sets metadata
                 if (self->ResultSets_.size() <= part.GetResultSetIndex()) {
@@ -234,7 +234,7 @@ struct TExecuteQueryBuffer : public TThrRefBase, TNonCopyable {
                     }
                     case Ydb::ResultSet::FORMAT_ARROW: {
                         resultSet.set_format(inRsProto.format());
-                        self->CollectArrowBytes(resultSet, inRs.MutableProto(), part.GetResultSetIndex());
+                        self->CollectArrowBytes(resultSet, inRsProto, part.GetResultSetIndex());
                         break;
                     }
                     default:
