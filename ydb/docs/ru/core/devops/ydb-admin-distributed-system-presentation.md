@@ -83,6 +83,18 @@ Storage Groups -> VDisks -> PDisks
 Nodes / racks / availability zones
 ```
 
+Та же схема в Mermaid:
+
+```mermaid
+flowchart TB
+    client["Client/SDK"] --> grpc["gRPC / sessions"]
+    grpc --> query["Query engine / TxProxy"]
+    query --> table["Table -> partitions -> DataShard tablets"]
+    table --> dsproxy["DS-Proxy"]
+    dsproxy --> storage["Storage Groups -> VDisks -> PDisks"]
+    storage --> infra["Nodes / racks / availability zones"]
+```
+
 **Что подчеркнуть:**
 
 - "Таблица" в пользовательском смысле может быть множеством партиций.
@@ -157,6 +169,17 @@ SLO/SLA symptom
   -> shard/table distribution
   -> node resources
   -> storage/network/infrastructure
+```
+
+Та же схема в Mermaid:
+
+```mermaid
+flowchart TB
+    symptom["SLO/SLA symptom"] --> api["API and query metrics"]
+    api --> consumers["Query / top consumers"]
+    consumers --> shards["Shard / table distribution"]
+    shards --> resources["Node resources"]
+    resources --> infrastructure["Storage / network / infrastructure"]
 ```
 
 **Что сказать:**
@@ -495,6 +518,19 @@ YDB - это горизонтально масштабируемая shared-noth
 
 ```text
 client -> gRPC -> query engine -> transaction/tablet layer -> DataShard/ColumnShard -> DS-Proxy -> storage groups -> disks/network/nodes
+```
+
+Та же схема в Mermaid:
+
+```mermaid
+flowchart LR
+    client["client"] --> grpc["gRPC"]
+    grpc --> query["query engine"]
+    query --> tx["transaction / tablet layer"]
+    tx --> shards["DataShard / ColumnShard"]
+    shards --> dsproxy["DS-Proxy"]
+    dsproxy --> storage["storage groups"]
+    storage --> infra["disks / network / nodes"]
 ```
 
 Когда мы диагностируем проблему, мы идём по этой цепочке сверху вниз или снизу вверх, но всегда пытаемся ответить на один вопрос: на каком слое возникла очередь или дисбаланс?
