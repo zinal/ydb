@@ -86,13 +86,13 @@ Nodes / racks / availability zones
 Та же схема в Mermaid:
 
 ```mermaid
-flowchart TB
-    client["Client/SDK"] --> grpc["gRPC / sessions"]
+flowchart LR
+    client["Client/SDK"] --> grpc["gRPC + sessions"]
     grpc --> query["Query engine / TxProxy"]
-    query --> table["Table -> partitions -> DataShard tablets"]
-    table --> dsproxy["DS-Proxy"]
-    dsproxy --> storage["Storage Groups -> VDisks -> PDisks"]
-    storage --> infra["Nodes / racks / availability zones"]
+    query --> shards["Table partitions / DataShards"]
+    shards --> dsproxy["DS-Proxy"]
+    dsproxy --> storage["Storage groups / VDisks / PDisks"]
+    storage --> infra["Nodes / racks / AZs"]
 ```
 
 **Что подчеркнуть:**
@@ -174,12 +174,12 @@ SLO/SLA symptom
 Та же схема в Mermaid:
 
 ```mermaid
-flowchart TB
-    symptom["SLO/SLA symptom"] --> api["API and query metrics"]
-    api --> consumers["Query / top consumers"]
+flowchart LR
+    symptom["SLO/SLA symptom"] --> api["API / query metrics"]
+    api --> consumers["Top consumers"]
     consumers --> shards["Shard / table distribution"]
     shards --> resources["Node resources"]
-    resources --> infrastructure["Storage / network / infrastructure"]
+    resources --> infrastructure["Storage / network"]
 ```
 
 **Что сказать:**
@@ -526,7 +526,7 @@ client -> gRPC -> query engine -> transaction/tablet layer -> DataShard/ColumnSh
 flowchart LR
     client["client"] --> grpc["gRPC"]
     grpc --> query["query engine"]
-    query --> tx["transaction / tablet layer"]
+    query --> tx["tx / tablets"]
     tx --> shards["DataShard / ColumnShard"]
     shards --> dsproxy["DS-Proxy"]
     dsproxy --> storage["storage groups"]
