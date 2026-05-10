@@ -801,6 +801,83 @@ Y_UNIT_TEST_SUITE(TGRpcNewCoordinationClientAuth) {
             }
         }
     }
+
+    Y_UNIT_TEST(DescribeNodeSemaphoreInfoRequiresSelectRow) {
+        TKikimrWithGrpcAndRootSchema server;
+
+        {
+            TClientContext root(server, "root@builtin", true);
+            ExpectSuccess(root.SchemeClient.ModifyPermissions("/Root",
+                TModifyPermissionsSettings()
+                    .AddGrantPermissions(TPermissions(
+                        "user_a@builtin",
+                        { "ydb.deprecated.create_table" }))
+                    .AddGrantPermissions(TPermissions(
+                        "user_b@builtin",
+                        { "ydb.deprecated.create_table" }))));
+            TClient::RefreshPathCache(server.Server_->GetRuntime(), "/Root");
+        }
+
+        {
+            TClientContext userA(server, "user_a@builtin", true);
+            ExpectSuccess(userA.Client.CreateNode("/Root/node5"));
+            auto session = ExpectSuccess(userA.Client.StartSession("/Root/node5"));
+            ExpectSuccess(session.CreateSemaphore("Sem1", 5));
+            ExpectSuccess(session.UpdateSemaphore("Sem1", "secret-payload"));
+            ExpectSuccess(session.Close());
+
+            TClientContext root(server, "root@builtin", true);
+            ExpectSuccess(root.SchemeClient.ModifyPermissions("/Root/node5",
+                TModifyPermissionsSettings()
+                    .AddGrantPermissions(TPermissions(
+                        "user_b@builtin",
+                        { "ydb.deprecated.describe_schema" }))));
+            TClient::RefreshPathCache(server.Server_->GetRuntime(), "/Root/node5");
+        }
+
+        using M = NYdb::NCoordination::EDescribeNodeSemaphoreInfoMode;
+
+        {
+            TClientContext userB(server, "user_b@builtin", true);
+            UNIT_ASSERT_VALUES_EQUAL(
+                userB.SchemeClient.DescribePath("/Root/node5").ExtractValueSync().GetStatus(),
+                EStatus::SUCCESS);
+
+            auto nodeMeta = ExpectSuccess(userB.Client.DescribeNode("/Root/node5"));
+            UNIT_ASSERT(nodeMeta.GetSemaphoreDescriptions().empty());
+
+            ExpectError(
+                userB.Client.DescribeNode(
+                    "/Root/node5",
+                    NYdb::NCoordination::TDescribeNodeSettings().SemaphoreInfoMode(M::Basic)),
+                EStatus::UNAUTHORIZED);
+
+            ExpectError(
+                userB.Client.StartSession("/Root/node5"),
+                EStatus::UNAUTHORIZED);
+        }
+
+        {
+            TClientContext root(server, "root@builtin", true);
+            ExpectSuccess(root.SchemeClient.ModifyPermissions("/Root/node5",
+                TModifyPermissionsSettings()
+                    .AddGrantPermissions(TPermissions(
+                        "user_b@builtin",
+                        { "ydb.deprecated.describe_schema", "ydb.deprecated.select_row" }))));
+            TClient::RefreshPathCache(server.Server_->GetRuntime(), "/Root/node5");
+        }
+
+        {
+            TClientContext userB(server, "user_b@builtin", true);
+            auto nodeBasic = ExpectSuccess(userB.Client.DescribeNode(
+                "/Root/node5",
+                NYdb::NCoordination::TDescribeNodeSettings().SemaphoreInfoMode(M::Basic)));
+            const auto& list = nodeBasic.GetSemaphoreDescriptions();
+            UNIT_ASSERT_VALUES_EQUAL(list.size(), 1u);
+            UNIT_ASSERT_VALUES_EQUAL(list[0].GetName(), "Sem1");
+            UNIT_ASSERT_VALUES_EQUAL(list[0].GetData(), "secret-payload");
+        }
+    }
 }
 
 }

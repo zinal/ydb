@@ -8,7 +8,9 @@
 #include "rpc_scheme_base.h"
 #include "rpc_common/rpc_common.h"
 
+#include <ydb/core/base/path.h>
 #include <ydb/core/protos/flat_tx_scheme.pb.h>
+#include <ydb/core/scheme/scheme_tabledefs.h>
 #include <ydb/core/tx/schemeshard/schemeshard.h>
 #include <ydb/core/ydb_convert/kesus_description.h>
 #include <ydb/library/actors/core/hfunc.h>
@@ -88,6 +90,16 @@ private:
 
                 if (!wantSemaphores || !pathDescription.HasKesus()) {
                     return ReplyWithResult(Ydb::StatusIds::SUCCESS, result, ctx);
+                }
+
+                // Same read gate as coordination session DescribeSemaphore (SelectRow on the node).
+                const auto& self = pathDescription.GetSelf();
+                TIntrusivePtr<TSecurityObject> securityObject;
+                if (self.HasOwner()) {
+                    securityObject = new TSecurityObject(self.GetOwner(), self.GetEffectiveACL(), false);
+                }
+                if (!this->CheckAccess(CanonizePath(req->path()), securityObject, NACLib::EAccessRights::SelectRow)) {
+                    return;
                 }
 
                 const ui64 tabletId = pathDescription.GetKesus().GetKesusTabletId();
