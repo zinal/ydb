@@ -93,6 +93,17 @@ message TEvDescribeSemaphoreResult {
     bool WatchAdded = 4;
 }
 
+message TEvDescribeSemaphores {
+    string KesusPath = 1;
+    bool IncludeOwnersAndWaiters = 2;
+}
+
+message TEvDescribeSemaphoresResult {
+    uint64 ProxyGeneration = 1;
+    TKesusError Error = 2;
+    repeated Ydb.Coordination.SemaphoreDescription SemaphoreDescriptions = 3;
+}
+
 message TEvDescribeSemaphoreChanged {
     uint64 ProxyGeneration = 1;
     bool DataChanged = 2;

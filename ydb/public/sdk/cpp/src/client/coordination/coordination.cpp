@@ -62,6 +62,10 @@ struct TNodeDescription::TImpl {
         Owner_ = desc.self().owner();
         PermissionToSchemeEntry(desc.self().effective_permissions(), &EffectivePermissions_);
         Proto_ = desc;
+        SemaphoreDescriptions_.reserve(desc.semaphore_descriptions_size());
+        for (const auto& sem : desc.semaphore_descriptions()) {
+            SemaphoreDescriptions_.emplace_back(sem);
+        }
     }
 
     void SerializeTo(Ydb::Coordination::CreateNodeRequest& creationRequest) {
@@ -77,6 +81,7 @@ struct TNodeDescription::TImpl {
     ERateLimiterCountersMode RateLimiterCountersMode_;
     std::string Owner_;
     std::vector<NScheme::TPermissions> EffectivePermissions_;
+    std::vector<TSemaphoreDescription> SemaphoreDescriptions_;
     Ydb::Coordination::DescribeNodeResult Proto_;
 };
 
@@ -115,6 +120,10 @@ const std::vector<NScheme::TPermissions>& TNodeDescription::GetEffectivePermissi
 
 const Ydb::Coordination::DescribeNodeResult& TNodeDescription::GetProto() const {
     return Impl_->Proto_;
+}
+
+const std::vector<TSemaphoreDescription>& TNodeDescription::GetSemaphoreDescriptions() const {
+    return Impl_->SemaphoreDescriptions_;
 }
 
 void TNodeDescription::SerializeTo(Ydb::Coordination::CreateNodeRequest& creationRequest) const {
@@ -1980,6 +1989,7 @@ TAsyncDescribeNodeResult TClient::DescribeNode(
 {
     auto request = MakeOperationRequest<Ydb::Coordination::DescribeNodeRequest>(settings);
     request.set_path(TStringType{path});
+    request.set_include_semaphore_info(static_cast<Ydb::Coordination::DescribeNodeSemaphoreInfoMode>(settings.SemaphoreInfoMode_));
     return Impl_->DescribeNode(std::move(request), settings);
 }
 

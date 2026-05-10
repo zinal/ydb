@@ -80,6 +80,39 @@ Y_UNIT_TEST_SUITE(TKesusTest) {
         ctx.SetConfig(12345, MakeConfig("/foo/bar/baz"), 41, Ydb::StatusIds::PRECONDITION_FAILED);
     }
 
+    Y_UNIT_TEST(TestDescribeSemaphoresTablet) {
+        TTestContext ctx;
+        ctx.Setup();
+        const TString path = "/kesus/tablet/describe-semaphores";
+        ctx.SetConfig(1, MakeConfig(path), 1);
+        ctx.CreateSemaphore("A", 10);
+        ctx.CreateSemaphore("B", 20);
+
+        auto edge = ctx.Runtime->AllocateEdgeActor();
+        ui64 cookie = 801;
+        ctx.SendFromEdge(edge, new TEvKesus::TEvDescribeSemaphores(path, false), cookie);
+        auto basic = ctx.ExpectEdgeEvent<TEvKesus::TEvDescribeSemaphoresResult>(edge, cookie);
+        UNIT_ASSERT_VALUES_EQUAL(basic->Record.GetError().GetStatus(), Ydb::StatusIds::SUCCESS);
+        UNIT_ASSERT_VALUES_EQUAL(basic->Record.SemaphoreDescriptionsSize(), 2u);
+        UNIT_ASSERT_VALUES_EQUAL(basic->Record.GetSemaphoreDescriptions(0).name(), "A");
+        UNIT_ASSERT_VALUES_EQUAL(basic->Record.GetSemaphoreDescriptions(1).name(), "B");
+        UNIT_ASSERT_VALUES_EQUAL(basic->Record.GetSemaphoreDescriptions(0).owners_size(), 0u);
+
+        auto proxy = ctx.Runtime->AllocateEdgeActor();
+        ctx.MustRegisterProxy(proxy, 1);
+        ctx.MustAttachSession(proxy, 1, 1, 60000);
+        ctx.SendAcquireSemaphore(1, proxy, 1, 1, "A", 1);
+        ctx.ExpectAcquireSemaphoreResult(1, proxy, 1);
+
+        cookie = 802;
+        ctx.SendFromEdge(edge, new TEvKesus::TEvDescribeSemaphores(path, true), cookie);
+        auto full = ctx.ExpectEdgeEvent<TEvKesus::TEvDescribeSemaphoresResult>(edge, cookie);
+        UNIT_ASSERT_VALUES_EQUAL(full->Record.GetError().GetStatus(), Ydb::StatusIds::SUCCESS);
+        UNIT_ASSERT_VALUES_EQUAL(full->Record.GetSemaphoreDescriptions(0).name(), "A");
+        UNIT_ASSERT_VALUES_EQUAL(full->Record.GetSemaphoreDescriptions(0).owners_size(), 1u);
+        UNIT_ASSERT_VALUES_EQUAL(full->Record.GetSemaphoreDescriptions(0).owners(0).session_id(), 1u);
+    }
+
     Y_UNIT_TEST(TestRegisterProxy) {
         TTestContext ctx;
         ctx.Setup();

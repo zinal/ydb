@@ -275,6 +275,52 @@ Y_UNIT_TEST_SUITE(TGRpcNewCoordinationClient) {
             EStatus::NOT_FOUND);
     }
 
+    Y_UNIT_TEST(DescribeNodeSemaphoreInfoModes) {
+        TKikimrWithGrpcAndRootSchema server;
+        TClientContext context(server);
+
+        ExpectSuccess(context.Client.CreateNode("/Root/node1"));
+
+        auto nodeDefault = ExpectSuccess(context.Client.DescribeNode("/Root/node1"));
+        UNIT_ASSERT(nodeDefault.GetSemaphoreDescriptions().empty());
+
+        auto session = ExpectSuccess(context.Client.StartSession("/Root/node1"));
+        ExpectSuccess(session.CreateSemaphore("SemB", 3));
+        ExpectSuccess(session.CreateSemaphore("SemA", 7));
+        UNIT_ASSERT(ExpectSuccess(
+            session.AcquireSemaphore("SemA",
+                TAcquireSemaphoreSettings().Count(2).Data("ownerdata"))));
+
+        using M = NYdb::NCoordination::EDescribeNodeSemaphoreInfoMode;
+        auto nodeBasic = ExpectSuccess(context.Client.DescribeNode("/Root/node1",
+            NYdb::NCoordination::TDescribeNodeSettings().SemaphoreInfoMode(M::Basic)));
+        const auto& basicList = nodeBasic.GetSemaphoreDescriptions();
+        UNIT_ASSERT_VALUES_EQUAL(basicList.size(), 2u);
+        UNIT_ASSERT_VALUES_EQUAL(basicList[0].GetName(), "SemA");
+        UNIT_ASSERT_VALUES_EQUAL(basicList[1].GetName(), "SemB");
+        UNIT_ASSERT_VALUES_EQUAL(basicList[0].GetOwners().size(), 0u);
+        UNIT_ASSERT_VALUES_EQUAL(basicList[0].GetWaiters().size(), 0u);
+        UNIT_ASSERT_VALUES_EQUAL(basicList[0].GetCount(), 2u);
+        UNIT_ASSERT_VALUES_EQUAL(basicList[0].GetLimit(), 7u);
+
+        auto nodeFull = ExpectSuccess(context.Client.DescribeNode("/Root/node1",
+            NYdb::NCoordination::TDescribeNodeSettings().SemaphoreInfoMode(M::Full)));
+        const auto& fullList = nodeFull.GetSemaphoreDescriptions();
+        UNIT_ASSERT_VALUES_EQUAL(fullList.size(), 2u);
+        const NYdb::NCoordination::TSemaphoreDescription* semA = nullptr;
+        for (const auto& s : fullList) {
+            if (s.GetName() == "SemA") {
+                semA = &s;
+            }
+        }
+        UNIT_ASSERT(semA != nullptr);
+        UNIT_ASSERT_VALUES_EQUAL(semA->GetOwners().size(), 1u);
+        UNIT_ASSERT_VALUES_EQUAL(semA->GetOwners()[0].GetSessionId(), session.GetSessionId());
+        UNIT_ASSERT_VALUES_EQUAL(semA->GetOwners()[0].GetCount(), 2u);
+        UNIT_ASSERT_VALUES_EQUAL(semA->GetOwners()[0].GetData(), "ownerdata");
+        UNIT_ASSERT_VALUES_EQUAL(semA->GetWaiters().size(), 0u);
+    }
+
 
     Y_UNIT_TEST(SessionMethods) {
         TKikimrWithGrpcAndRootSchema server;

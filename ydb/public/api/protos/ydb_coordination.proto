@@ -481,9 +481,20 @@ message DropNodeResponse {
     Ydb.Operations.Operation operation = 1;
 }
 
+/**
+ * How much semaphore state DescribeNode should return.
+ * Default NONE preserves responses from older servers and clients.
+ */
+enum DescribeNodeSemaphoreInfoMode {
+    DESCRIBE_NODE_SEMAPHORE_INFO_MODE_NONE = 0;
+    DESCRIBE_NODE_SEMAPHORE_INFO_MODE_BASIC = 1;
+    DESCRIBE_NODE_SEMAPHORE_INFO_MODE_FULL = 2;
+}
+
 message DescribeNodeRequest {
     string path = 1;
     Ydb.Operations.OperationParams operation_params = 2;
+    DescribeNodeSemaphoreInfoMode include_semaphore_info = 3;
 }
 
 message DescribeNodeResponse {
@@ -493,4 +504,6 @@ message DescribeNodeResponse {
 message DescribeNodeResult {
     Ydb.Scheme.Entry self = 1;
     Config config = 2;
+    // Populated only when DescribeNodeRequest.include_semaphore_info is BASIC or FULL.
+    repeated SemaphoreDescription semaphore_descriptions = 3;
 }

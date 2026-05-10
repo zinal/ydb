@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include <ydb/public/sdk/cpp/include/ydb-cpp-sdk/client/driver/driver.h>
 
 namespace Ydb {
@@ -94,6 +96,15 @@ enum class ERateLimiterCountersMode {
     DETAILED = 2,
 };
 
+//! Controls optional semaphore snapshot in DescribeNode responses.
+enum class EDescribeNodeSemaphoreInfoMode : std::uint32_t {
+    None = 0,
+    Basic = 1,
+    Full = 2,
+};
+
+class TSemaphoreDescription;
+
 //! Represents coordination node description
 class TNodeDescription {
 public:
@@ -108,6 +119,9 @@ public:
     const std::string& GetOwner() const;
     const std::vector<NScheme::TPermissions>& GetEffectivePermissions() const;
     const Ydb::Coordination::DescribeNodeResult& GetProto() const;
+
+    //! Non-empty only when DescribeNode was called with Basic or Full semaphore info mode.
+    const std::vector<TSemaphoreDescription>& GetSemaphoreDescriptions() const;
 
     void SerializeTo(Ydb::Coordination::CreateNodeRequest& creationRequest) const;
 
@@ -201,7 +215,11 @@ struct TAlterNodeSettings : public TNodeSettings<TAlterNodeSettings> { };
 struct TDropNodeSettings : public TOperationRequestSettings<TDropNodeSettings> {
     using TOperationRequestSettings<TDropNodeSettings>::TOperationRequestSettings;
 };
-struct TDescribeNodeSettings : public TOperationRequestSettings<TDescribeNodeSettings> { };
+struct TDescribeNodeSettings : public TOperationRequestSettings<TDescribeNodeSettings> {
+    using TSelf = TDescribeNodeSettings;
+
+    FLUENT_SETTING_DEFAULT(EDescribeNodeSemaphoreInfoMode, SemaphoreInfoMode, EDescribeNodeSemaphoreInfoMode::None);
+};
 
 ////////////////////////////////////////////////////////////////////////////////
 

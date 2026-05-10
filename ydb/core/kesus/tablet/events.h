@@ -57,6 +57,8 @@ namespace TEvKesus {
         EvAcquireSemaphoreResult,
         EvReleaseSemaphore,
         EvReleaseSemaphoreResult,
+        EvDescribeSemaphores,
+        EvDescribeSemaphoresResult,
 
         // Notifications
         EvProxyExpired = EvBegin + 512,
@@ -203,6 +205,19 @@ namespace TEvKesus {
     };
 
     struct TEvDescribeSemaphoreResult : public TResultBase<TEvDescribeSemaphoreResult, NKikimrKesus::TEvDescribeSemaphoreResult, EvDescribeSemaphoreResult> {
+        using TResultBase::TResultBase;
+    };
+
+    struct TEvDescribeSemaphores : public TEventPB<TEvDescribeSemaphores, NKikimrKesus::TEvDescribeSemaphores, EvDescribeSemaphores> {
+        TEvDescribeSemaphores() = default;
+
+        explicit TEvDescribeSemaphores(const TString& kesusPath, bool includeOwnersAndWaiters) {
+            Record.SetKesusPath(kesusPath);
+            Record.SetIncludeOwnersAndWaiters(includeOwnersAndWaiters);
+        }
+    };
+
+    struct TEvDescribeSemaphoresResult : public TResultBase<TEvDescribeSemaphoresResult, NKikimrKesus::TEvDescribeSemaphoresResult, EvDescribeSemaphoresResult> {
         using TResultBase::TResultBase;
     };
 
