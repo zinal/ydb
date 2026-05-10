@@ -9,6 +9,8 @@
 #include <library/cpp/testing/unittest/tests_data.h>
 #include <library/cpp/testing/unittest/registar.h>
 
+#include <unordered_set>
+
 namespace NKikimr {
 
 using namespace Tests;
@@ -275,7 +277,7 @@ Y_UNIT_TEST_SUITE(TGRpcNewCoordinationClient) {
             EStatus::NOT_FOUND);
     }
 
-    Y_UNIT_TEST(DescribeNodeSemaphoreNames) {
+    Y_UNIT_TEST(ListSemaphoresStream) {
         TKikimrWithGrpcAndRootSchema server;
         TClientContext context(server);
 
@@ -286,29 +288,46 @@ Y_UNIT_TEST_SUITE(TGRpcNewCoordinationClient) {
         ExpectSuccess(session.CreateSemaphore("SemB", 2));
 
         {
-            auto desc = ExpectSuccess(context.Client.DescribeNode("/Root/node1"));
-            UNIT_ASSERT_VALUES_EQUAL(desc.GetSemaphoreNames().size(), 0u);
-        }
-        {
-            auto desc = ExpectSuccess(
-                context.Client.DescribeNode(
-                    "/Root/node1",
-                    NYdb::NCoordination::TDescribeNodeSettings().IncludeSemaphoreNames(true)));
-            UNIT_ASSERT_VALUES_EQUAL(desc.GetSemaphoreNames().size(), 2u);
-            UNIT_ASSERT_VALUES_EQUAL(desc.GetSemaphoreNames()[0], "SemA");
-            UNIT_ASSERT_VALUES_EQUAL(desc.GetSemaphoreNames()[1], "SemB");
-        }
-
-        ExpectSuccess(session.DeleteSemaphore("SemA"));
-
-        auto descAfterDelete = ExpectSuccess(
-            context.Client.DescribeNode(
+            auto itFuture = context.Client.ListSemaphores(
                 "/Root/node1",
-                NYdb::NCoordination::TDescribeNodeSettings().IncludeSemaphoreNames(true)));
-        UNIT_ASSERT_VALUES_EQUAL(descAfterDelete.GetSemaphoreNames().size(), 1u);
-        UNIT_ASSERT_VALUES_EQUAL(descAfterDelete.GetSemaphoreNames()[0], "SemB");
-    }
+                NYdb::NCoordination::TListSemaphoresSettings().IncludeDetails(false));
+            auto it = itFuture.ExtractValueSync();
+            UNIT_ASSERT_C(it.IsSuccess(), TStatusDescription(it));
 
+            std::unordered_set<std::string> names;
+            while (true) {
+                auto part = it.ReadNext().ExtractValueSync();
+                UNIT_ASSERT_C(part.IsSuccess(), TStatusDescription(part));
+                if (!part.HasSemaphoreDescription()) {
+                    break;
+                }
+                UNIT_ASSERT_VALUES_EQUAL(part.GetSemaphoreDescription().GetOwners().size(), 0u);
+                UNIT_ASSERT_VALUES_EQUAL(part.GetSemaphoreDescription().GetWaiters().size(), 0u);
+                names.insert(part.GetSemaphoreDescription().GetName());
+            }
+            UNIT_ASSERT(names.count("SemA"));
+            UNIT_ASSERT(names.count("SemB"));
+        }
+
+        {
+            auto itFuture = context.Client.ListSemaphores(
+                "/Root/node1",
+                NYdb::NCoordination::TListSemaphoresSettings().IncludeDetails(true));
+            auto it = itFuture.ExtractValueSync();
+            UNIT_ASSERT_C(it.IsSuccess(), TStatusDescription(it));
+
+            size_t n = 0;
+            while (true) {
+                auto part = it.ReadNext().ExtractValueSync();
+                UNIT_ASSERT_C(part.IsSuccess(), TStatusDescription(part));
+                if (!part.HasSemaphoreDescription()) {
+                    break;
+                }
+                ++n;
+            }
+            UNIT_ASSERT_VALUES_EQUAL(n, 2u);
+        }
+    }
 
     Y_UNIT_TEST(SessionMethods) {
         TKikimrWithGrpcAndRootSchema server;

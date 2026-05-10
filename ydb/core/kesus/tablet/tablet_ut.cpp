@@ -80,7 +80,7 @@ Y_UNIT_TEST_SUITE(TKesusTest) {
         ctx.SetConfig(12345, MakeConfig("/foo/bar/baz"), 41, Ydb::StatusIds::PRECONDITION_FAILED);
     }
 
-    Y_UNIT_TEST(TestGetConfigSemaphoreNames) {
+    Y_UNIT_TEST(TestListSemaphoresFromTablet) {
         TTestContext ctx;
         ctx.Setup();
         auto proxy = ctx.Runtime->AllocateEdgeActor();
@@ -89,26 +89,36 @@ Y_UNIT_TEST_SUITE(TKesusTest) {
         ctx.SendAcquireLock(111, proxy, 1, 1, "Lock1", LOCK_MODE_EXCLUSIVE);
         ctx.ExpectAcquireLockResult(111, proxy, 1);
 
-        UNIT_ASSERT_VALUES_EQUAL(ctx.GetConfig(false).GetSemaphoreNames().size(), 0u);
+        UNIT_ASSERT_VALUES_EQUAL(ctx.ListSemaphoresFromTablet(false).GetSemaphoreDescriptions().size(), 0u);
 
         ctx.CreateSemaphore("Alpha", 1);
         ctx.CreateSemaphore("Beta", 1);
 
-        UNIT_ASSERT_VALUES_EQUAL(ctx.GetConfig(false).GetSemaphoreNames().size(), 0u);
+        {
+            const auto r = ctx.ListSemaphoresFromTablet(false);
+            UNIT_ASSERT_VALUES_EQUAL(r.GetSemaphoreDescriptions().size(), 2u);
+            ui32 alphaCount = 0;
+            ui32 betaCount = 0;
+            for (const auto& d : r.GetSemaphoreDescriptions()) {
+                UNIT_ASSERT_VALUES_EQUAL(d.owners_size(), 0);
+                UNIT_ASSERT_VALUES_EQUAL(d.waiters_size(), 0);
+                if (d.name() == "Alpha") {
+                    ++alphaCount;
+                } else if (d.name() == "Beta") {
+                    ++betaCount;
+                }
+            }
+            UNIT_ASSERT_VALUES_EQUAL(alphaCount, 1u);
+            UNIT_ASSERT_VALUES_EQUAL(betaCount, 1u);
+        }
 
-        const auto namesRecord = ctx.GetConfig(true);
-        UNIT_ASSERT_VALUES_EQUAL(namesRecord.GetSemaphoreNames().size(), 2u);
-        ui32 alphaCount = 0;
-        ui32 betaCount = 0;
-        for (const TString& name : namesRecord.GetSemaphoreNames()) {
-            if (name == "Alpha") {
-                ++alphaCount;
-            } else if (name == "Beta") {
-                ++betaCount;
+        {
+            const auto r = ctx.ListSemaphoresFromTablet(true);
+            UNIT_ASSERT_VALUES_EQUAL(r.GetSemaphoreDescriptions().size(), 2u);
+            for (const auto& d : r.GetSemaphoreDescriptions()) {
+                UNIT_ASSERT_VALUES_EQUAL(d.owners_size(), 0u);
             }
         }
-        UNIT_ASSERT_VALUES_EQUAL(alphaCount, 1u);
-        UNIT_ASSERT_VALUES_EQUAL(betaCount, 1u);
     }
 
     Y_UNIT_TEST(TestRegisterProxy) {

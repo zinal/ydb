@@ -58,6 +58,9 @@ namespace TEvKesus {
         EvReleaseSemaphore,
         EvReleaseSemaphoreResult,
 
+        EvListSemaphores,
+        EvListSemaphoresResult,
+
         // Notifications
         EvProxyExpired = EvBegin + 512,
         EvSessionExpired,
@@ -247,6 +250,30 @@ namespace TEvKesus {
 
     struct TEvDeleteSemaphoreResult : public TResultBase<TEvDeleteSemaphoreResult, NKikimrKesus::TEvDeleteSemaphoreResult, EvDeleteSemaphoreResult> {
         using TResultBase::TResultBase;
+    };
+
+    struct TEvListSemaphores : public TEventPB<TEvListSemaphores, NKikimrKesus::TEvListSemaphores, EvListSemaphores> {
+        TEvListSemaphores() = default;
+
+        TEvListSemaphores(const TString& kesusPath, bool includeDetails) {
+            Record.SetKesusPath(kesusPath);
+            Record.SetProxyGeneration(0);
+            Record.SetIncludeDetails(includeDetails);
+        }
+    };
+
+    struct TEvListSemaphoresResult : public TEventPB<TEvListSemaphoresResult, NKikimrKesus::TEvListSemaphoresResult, EvListSemaphoresResult> {
+        TEvListSemaphoresResult() = default;
+
+        explicit TEvListSemaphoresResult(ui64 generation) {
+            Record.SetProxyGeneration(generation);
+            Record.MutableError()->SetStatus(Ydb::StatusIds::SUCCESS);
+        }
+
+        TEvListSemaphoresResult(ui64 generation, Ydb::StatusIds::StatusCode status, const TString& reason) {
+            Record.SetProxyGeneration(generation);
+            FillError(Record.MutableError(), status, reason);
+        }
     };
 
     struct TEvRegisterProxy : public TEventPB<TEvRegisterProxy, NKikimrKesus::TEvRegisterProxy, EvRegisterProxy> {

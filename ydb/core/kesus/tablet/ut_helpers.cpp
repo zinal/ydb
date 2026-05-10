@@ -160,15 +160,22 @@ void TTestContext::SendFromProxy(const TActorId& proxy, ui64 generation, IEventB
         cookie);
 }
 
-NKikimrKesus::TEvGetConfigResult TTestContext::GetConfig(bool includeSemaphoreNames) {
+NKikimrKesus::TEvGetConfigResult TTestContext::GetConfig() {
     const ui64 cookie = RandomNumber<ui64>();
     const auto edge = Runtime->AllocateEdgeActor();
-    THolder<TEvKesus::TEvGetConfig> req = MakeHolder<TEvKesus::TEvGetConfig>();
-    req->Record.SetIncludeSemaphoreNames(includeSemaphoreNames);
-    SendFromEdge(edge, std::move(req), cookie);
+    SendFromEdge(edge, new TEvKesus::TEvGetConfig(), cookie);
 
     auto result = ExpectEdgeEvent<TEvKesus::TEvGetConfigResult>(edge, cookie);
     UNIT_ASSERT_VALUES_EQUAL_C(result->Record.GetConfig().path(), result->Record.GetPath(), "Record: " << result->Record);
+    return result->Record;
+}
+
+NKikimrKesus::TEvListSemaphoresResult TTestContext::ListSemaphoresFromTablet(bool includeDetails) {
+    const ui64 cookie = RandomNumber<ui64>();
+    const auto edge = Runtime->AllocateEdgeActor();
+    SendFromEdge(edge, new TEvKesus::TEvListSemaphores("", includeDetails), cookie);
+
+    auto result = ExpectEdgeEvent<TEvKesus::TEvListSemaphoresResult>(edge, cookie);
     return result->Record;
 }
 

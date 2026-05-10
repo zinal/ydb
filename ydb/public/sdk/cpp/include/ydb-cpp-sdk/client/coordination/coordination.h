@@ -1,12 +1,14 @@
 #pragma once
 
 #include <ydb/public/sdk/cpp/include/ydb-cpp-sdk/client/driver/driver.h>
+#include <ydb/public/sdk/cpp/include/ydb-cpp-sdk/client/types/status/status.h>
 
 namespace Ydb {
 namespace Coordination {
     class Config;
     class CreateNodeRequest;
     class DescribeNodeResult;
+    class ListSemaphoresRequest;
     class SemaphoreDescription;
     class SemaphoreSession;
 }
@@ -107,7 +109,6 @@ public:
 
     const std::string& GetOwner() const;
     const std::vector<NScheme::TPermissions>& GetEffectivePermissions() const;
-    const std::vector<std::string>& GetSemaphoreNames() const;
     const Ydb::Coordination::DescribeNodeResult& GetProto() const;
 
     void SerializeTo(Ydb::Coordination::CreateNodeRequest& creationRequest) const;
@@ -202,9 +203,41 @@ struct TAlterNodeSettings : public TNodeSettings<TAlterNodeSettings> { };
 struct TDropNodeSettings : public TOperationRequestSettings<TDropNodeSettings> {
     using TOperationRequestSettings<TDropNodeSettings>::TOperationRequestSettings;
 };
-struct TDescribeNodeSettings : public TOperationRequestSettings<TDescribeNodeSettings> {
-    FLUENT_SETTING_DEFAULT(bool, IncludeSemaphoreNames, false);
+struct TDescribeNodeSettings : public TOperationRequestSettings<TDescribeNodeSettings> { };
+
+////////////////////////////////////////////////////////////////////////////////
+
+struct TListSemaphoresSettings : public TOperationRequestSettings<TListSemaphoresSettings> {
+    FLUENT_SETTING_DEFAULT(bool, IncludeDetails, false);
 };
+
+class TListSemaphoresPart : public TStreamPartStatus {
+public:
+    bool HasSemaphoreDescription() const {
+        return Description_.has_value();
+    }
+
+    const TSemaphoreDescription& GetSemaphoreDescription() const {
+        return *Description_;
+    }
+
+    explicit TListSemaphoresPart(TStatus&& status)
+        : TStreamPartStatus(std::move(status))
+    {}
+
+    TListSemaphoresPart(TStatus&& status, TSemaphoreDescription&& description)
+        : TStreamPartStatus(std::move(status))
+        , Description_(std::move(description))
+    {}
+
+private:
+    std::optional<TSemaphoreDescription> Description_;
+};
+
+using TAsyncListSemaphoresPart = NThreading::TFuture<TListSemaphoresPart>;
+
+class TListSemaphoresIterator;
+using TAsyncListSemaphoresIterator = NThreading::TFuture<TListSemaphoresIterator>;
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -315,9 +348,26 @@ public:
     TAsyncDescribeNodeResult DescribeNode(const std::string& path,
         const TDescribeNodeSettings& settings = TDescribeNodeSettings());
 
+    TAsyncListSemaphoresIterator ListSemaphores(const std::string& path,
+        const TListSemaphoresSettings& settings = TListSemaphoresSettings());
+
 private:
     class TImpl;
     std::shared_ptr<TImpl> Impl_;
+};
+
+class TListSemaphoresIterator : public TStatus {
+    friend class TClient::TImpl;
+
+public:
+    TAsyncListSemaphoresPart ReadNext();
+
+private:
+    struct TReaderImpl;
+
+    TListSemaphoresIterator(std::shared_ptr<TReaderImpl> impl, TPlainStatus&& status);
+
+    std::shared_ptr<TReaderImpl> ReaderImpl_;
 };
 
 ////////////////////////////////////////////////////////////////////////////////

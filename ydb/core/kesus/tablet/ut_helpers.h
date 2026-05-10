@@ -75,7 +75,8 @@ struct TTestContext {
     void SendFromProxy(const TActorId& proxy, ui64 generation, IEventBase* payload, ui64 cookie = 0);
 
     // set/get config requests
-    NKikimrKesus::TEvGetConfigResult GetConfig(bool includeSemaphoreNames = false);
+    NKikimrKesus::TEvGetConfigResult GetConfig();
+    NKikimrKesus::TEvListSemaphoresResult ListSemaphoresFromTablet(bool includeDetails = false);
     NKikimrKesus::TEvSetConfigResult SetConfig(ui64 txId, const Ydb::Coordination::Config& config, ui64 version, Ydb::StatusIds::StatusCode status = Ydb::StatusIds::SUCCESS);
 
     // Makes a dummy request using this proxy/generation pair

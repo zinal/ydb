@@ -1,4 +1,5 @@
 #include "grpc_service.h"
+#include "grpc_list_semaphores.h"
 
 #include <ydb/core/kesus/proxy/proxy.h>
 #include <ydb/core/kesus/proxy/events.h>
@@ -646,6 +647,30 @@ void TKesusGRpcService::SetupIncomingRequests(NYdbGrpc::TLoggerPtr logger) {
 #error SETUP_KESUS_STREAM_METHOD macro already defined
 #endif
 
+#ifdef SETUP_KESUS_LIST_SEMAPHORES_STREAM
+#error SETUP_KESUS_LIST_SEMAPHORES_STREAM macro already defined
+#endif
+
+#define SETUP_KESUS_LIST_SEMAPHORES_STREAM()                                                                \
+    for (auto* cq : CQS) {                                                                                  \
+        MakeIntrusive<::NKikimr::NGRpcService::TGRpcRequest<                                               \
+            Ydb::Coordination::ListSemaphoresRequest,                                                       \
+            Ydb::Coordination::SemaphoreDescription,                                                        \
+            TKesusGRpcService>>(                                                                            \
+            this,                                                                                           \
+            &Service_,                                                                                      \
+            cq,                                                                                             \
+            [this](NYdbGrpc::IRequestContextBase* reqCtx) {                                                 \
+                StartGRpcListSemaphores(ActorSystem_, reqCtx);                                             \
+            },                                                                                              \
+            &Ydb::Coordination::V1::CoordinationService::AsyncService::RequestListSemaphores,              \
+            "ListSemaphores",                                                                               \
+            logger,                                                                                         \
+            getCounterBlock("coordination", "ListSemaphores", true),                                       \
+            nullptr                                                                                         \
+        )->Run();                                                                                           \
+    }
+
 #define SETUP_KESUS_METHOD(methodName, methodCallback, rlMode, requestType, auditMode) \
     for (auto* cq : CQS) {                                                             \
         SETUP_RUNTIME_EVENT_METHOD(methodName,                                         \
@@ -689,11 +714,13 @@ void TKesusGRpcService::SetupIncomingRequests(NYdbGrpc::TLoggerPtr logger) {
     SETUP_KESUS_METHOD(AlterNode, DoAlterCoordinationNode, RLSWITCH(Rps), UNSPECIFIED, TAuditMode::Modifying(TAuditMode::TLogClassConfig::Ddl));
     SETUP_KESUS_METHOD(DropNode, DoDropCoordinationNode, RLSWITCH(Rps), UNSPECIFIED, TAuditMode::Modifying(TAuditMode::TLogClassConfig::Ddl));
     SETUP_KESUS_METHOD(DescribeNode, DoDescribeCoordinationNode, RLSWITCH(Rps), UNSPECIFIED, TAuditMode::NonModifying());
+    SETUP_KESUS_LIST_SEMAPHORES_STREAM();
     SETUP_KESUS_STREAM_METHOD(Session, RLMODE(Off), UNSPECIFIED, TAuditMode::NonModifying(), NGRpcService::TEvCoordinationSessionRequest);
 
 #undef GET_LIMITER_BY_PATH
 #undef SETUP_KESUS_METHOD
 #undef SETUP_KESUS_STREAM_METHOD
+#undef SETUP_KESUS_LIST_SEMAPHORES_STREAM
 }
 
 } // namespace NKesus
