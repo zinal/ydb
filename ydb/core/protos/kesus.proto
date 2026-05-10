@@ -37,13 +37,14 @@ message TEvSetConfigResult {
 }
 
 message TEvGetConfig {
-    // nothing
+    bool IncludeSemaphoreNames = 1;
 }
 
 message TEvGetConfigResult {
     Ydb.Coordination.Config Config = 1;
     uint64 Version = 2;
     string Path = 3;
+    repeated string SemaphoreNames = 4;
 }
 
 message TEvDescribeProxies {

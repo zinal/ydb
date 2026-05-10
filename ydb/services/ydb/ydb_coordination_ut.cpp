@@ -275,6 +275,40 @@ Y_UNIT_TEST_SUITE(TGRpcNewCoordinationClient) {
             EStatus::NOT_FOUND);
     }
 
+    Y_UNIT_TEST(DescribeNodeSemaphoreNames) {
+        TKikimrWithGrpcAndRootSchema server;
+        TClientContext context(server);
+
+        ExpectSuccess(context.Client.CreateNode("/Root/node1"));
+
+        auto session = ExpectSuccess(context.Client.StartSession("/Root/node1"));
+        ExpectSuccess(session.CreateSemaphore("SemA", 3));
+        ExpectSuccess(session.CreateSemaphore("SemB", 2));
+
+        {
+            auto desc = ExpectSuccess(context.Client.DescribeNode("/Root/node1"));
+            UNIT_ASSERT_VALUES_EQUAL(desc.GetSemaphoreNames().size(), 0u);
+        }
+        {
+            auto desc = ExpectSuccess(
+                context.Client.DescribeNode(
+                    "/Root/node1",
+                    NYdb::NCoordination::TDescribeNodeSettings().IncludeSemaphoreNames(true)));
+            UNIT_ASSERT_VALUES_EQUAL(desc.GetSemaphoreNames().size(), 2u);
+            UNIT_ASSERT_VALUES_EQUAL(desc.GetSemaphoreNames()[0], "SemA");
+            UNIT_ASSERT_VALUES_EQUAL(desc.GetSemaphoreNames()[1], "SemB");
+        }
+
+        ExpectSuccess(session.DeleteSemaphore("SemA"));
+
+        auto descAfterDelete = ExpectSuccess(
+            context.Client.DescribeNode(
+                "/Root/node1",
+                NYdb::NCoordination::TDescribeNodeSettings().IncludeSemaphoreNames(true)));
+        UNIT_ASSERT_VALUES_EQUAL(descAfterDelete.GetSemaphoreNames().size(), 1u);
+        UNIT_ASSERT_VALUES_EQUAL(descAfterDelete.GetSemaphoreNames()[0], "SemB");
+    }
+
 
     Y_UNIT_TEST(SessionMethods) {
         TKikimrWithGrpcAndRootSchema server;

@@ -61,6 +61,7 @@ struct TNodeDescription::TImpl {
         RateLimiterCountersMode_ = static_cast<ERateLimiterCountersMode>(config.rate_limiter_counters_mode());
         Owner_ = desc.self().owner();
         PermissionToSchemeEntry(desc.self().effective_permissions(), &EffectivePermissions_);
+        SemaphoreNames_.assign(desc.semaphore_names().begin(), desc.semaphore_names().end());
         Proto_ = desc;
     }
 
@@ -77,6 +78,7 @@ struct TNodeDescription::TImpl {
     ERateLimiterCountersMode RateLimiterCountersMode_;
     std::string Owner_;
     std::vector<NScheme::TPermissions> EffectivePermissions_;
+    std::vector<std::string> SemaphoreNames_;
     Ydb::Coordination::DescribeNodeResult Proto_;
 };
 
@@ -111,6 +113,10 @@ const std::string& TNodeDescription::GetOwner() const {
 
 const std::vector<NScheme::TPermissions>& TNodeDescription::GetEffectivePermissions() const {
     return Impl_->EffectivePermissions_;
+}
+
+const std::vector<std::string>& TNodeDescription::GetSemaphoreNames() const {
+    return Impl_->SemaphoreNames_;
 }
 
 const Ydb::Coordination::DescribeNodeResult& TNodeDescription::GetProto() const {
@@ -1980,6 +1986,7 @@ TAsyncDescribeNodeResult TClient::DescribeNode(
 {
     auto request = MakeOperationRequest<Ydb::Coordination::DescribeNodeRequest>(settings);
     request.set_path(TStringType{path});
+    request.set_include_semaphore_names(settings.IncludeSemaphoreNames_);
     return Impl_->DescribeNode(std::move(request), settings);
 }
 

@@ -484,6 +484,8 @@ message DropNodeResponse {
 message DescribeNodeRequest {
     string path = 1;
     Ydb.Operations.OperationParams operation_params = 2;
+    // When true, DescribeNodeResult includes semaphore_names from the coordination node.
+    bool include_semaphore_names = 3;
 }
 
 message DescribeNodeResponse {
@@ -493,4 +495,6 @@ message DescribeNodeResponse {
 message DescribeNodeResult {
     Ydb.Scheme.Entry self = 1;
     Config config = 2;
+    // Names of semaphores stored in the coordination node (filled only when requested).
+    repeated string semaphore_names = 3;
 }

@@ -107,6 +107,7 @@ public:
 
     const std::string& GetOwner() const;
     const std::vector<NScheme::TPermissions>& GetEffectivePermissions() const;
+    const std::vector<std::string>& GetSemaphoreNames() const;
     const Ydb::Coordination::DescribeNodeResult& GetProto() const;
 
     void SerializeTo(Ydb::Coordination::CreateNodeRequest& creationRequest) const;
@@ -201,7 +202,9 @@ struct TAlterNodeSettings : public TNodeSettings<TAlterNodeSettings> { };
 struct TDropNodeSettings : public TOperationRequestSettings<TDropNodeSettings> {
     using TOperationRequestSettings<TDropNodeSettings>::TOperationRequestSettings;
 };
-struct TDescribeNodeSettings : public TOperationRequestSettings<TDescribeNodeSettings> { };
+struct TDescribeNodeSettings : public TOperationRequestSettings<TDescribeNodeSettings> {
+    FLUENT_SETTING_DEFAULT(bool, IncludeSemaphoreNames, false);
+};
 
 ////////////////////////////////////////////////////////////////////////////////
 

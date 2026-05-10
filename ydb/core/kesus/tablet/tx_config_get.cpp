@@ -6,13 +6,15 @@ namespace NKesus {
 struct TKesusTablet::TTxConfigGet : public TTxBase {
     const TActorId Sender;
     const ui64 Cookie;
+    const bool IncludeSemaphoreNames;
 
     THolder<TEvKesus::TEvGetConfigResult> Reply;
 
-    TTxConfigGet(TSelf* self, const TActorId& sender, ui64 cookie)
+    TTxConfigGet(TSelf* self, const TActorId& sender, ui64 cookie, bool includeSemaphoreNames)
         : TTxBase(self)
         , Sender(sender)
         , Cookie(cookie)
+        , IncludeSemaphoreNames(includeSemaphoreNames)
     {}
 
     TTxType GetTxType() const override { return TXTYPE_CONFIG_GET; }
@@ -35,6 +37,17 @@ struct TKesusTablet::TTxConfigGet : public TTxBase {
         config->set_rate_limiter_counters_mode(Self->RateLimiterCountersMode);
         Reply->Record.SetVersion(Self->ConfigVersion);
         Reply->Record.SetPath(Self->KesusPath);
+        if (IncludeSemaphoreNames) {
+            TVector<TString> names;
+            names.reserve(Self->Semaphores.size());
+            for (const auto& kv : Self->Semaphores) {
+                names.push_back(kv.second.Name);
+            }
+            Sort(names.begin(), names.end());
+            for (const TString& name : names) {
+                Reply->Record.AddSemaphoreNames(name);
+            }
+        }
         return true;
     }
 
@@ -48,7 +61,8 @@ struct TKesusTablet::TTxConfigGet : public TTxBase {
 };
 
 void TKesusTablet::Handle(TEvKesus::TEvGetConfig::TPtr& ev) {
-    Execute(new TTxConfigGet(this, ev->Sender, ev->Cookie), TActivationContext::AsActorContext());
+    Execute(new TTxConfigGet(this, ev->Sender, ev->Cookie, ev->Get()->Record.GetIncludeSemaphoreNames()),
+        TActivationContext::AsActorContext());
 }
 
 }
