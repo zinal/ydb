@@ -329,10 +329,16 @@ Y_UNIT_TEST_SUITE(TGRpcNewCoordinationClient) {
         auto session2 = ExpectSuccess(
             context.Client.StartSession("/Root/node1",
                 TSessionSettings().Timeout(TDuration::Seconds(30))));
+        TPromise<void> waiterAccepted = NewPromise();
+        auto waiterAcceptedLambda = [=]() mutable {
+            waiterAccepted.SetValue();
+        };
         auto waitAcquire = session2.AcquireSemaphore("SemA",
             TAcquireSemaphoreSettings()
                 .Count(2)
-                .Timeout(TDuration::Max()));
+                .Timeout(TDuration::Max())
+                .OnAccepted(waiterAcceptedLambda));
+        waiterAccepted.GetFuture().GetValueSync();
 
         auto describeSemA = ExpectSuccess(
             session1.DescribeSemaphore("SemA",
