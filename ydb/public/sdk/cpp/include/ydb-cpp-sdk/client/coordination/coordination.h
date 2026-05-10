@@ -329,6 +329,8 @@ struct TDescribeSemaphoreSettings {
 
 class TClient {
 public:
+    class TImpl;
+
     TClient(const TDriver& driver, const TCommonClientSettings& settings = TCommonClientSettings());
 
     ~TClient();
@@ -352,7 +354,6 @@ public:
         const TListSemaphoresSettings& settings = TListSemaphoresSettings());
 
 private:
-    class TImpl;
     std::shared_ptr<TImpl> Impl_;
 };
 

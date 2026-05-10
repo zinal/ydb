@@ -93,6 +93,7 @@ Y_UNIT_TEST_SUITE(TKesusTest) {
 
         ctx.CreateSemaphore("Alpha", 1);
         ctx.CreateSemaphore("Beta", 1);
+        ctx.UpdateSemaphore("Alpha", "meta-alpha");
 
         {
             const auto r = ctx.ListSemaphoresFromTablet(false);
@@ -117,6 +118,14 @@ Y_UNIT_TEST_SUITE(TKesusTest) {
             UNIT_ASSERT_VALUES_EQUAL(r.GetSemaphoreDescriptions().size(), 2u);
             for (const auto& d : r.GetSemaphoreDescriptions()) {
                 UNIT_ASSERT_VALUES_EQUAL(d.owners_size(), 0u);
+                UNIT_ASSERT_VALUES_EQUAL(d.waiters_size(), 0u);
+                if (d.name() == "Alpha") {
+                    UNIT_ASSERT_VALUES_EQUAL(d.data(), "meta-alpha");
+                } else if (d.name() == "Beta") {
+                    UNIT_ASSERT_VALUES_EQUAL(d.data(), "");
+                } else {
+                    UNIT_FAIL("unexpected semaphore");
+                }
             }
         }
     }

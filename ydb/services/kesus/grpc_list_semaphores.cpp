@@ -4,12 +4,15 @@
 #include <ydb/core/kesus/proxy/proxy.h>
 #include <ydb/core/kesus/tablet/events.h>
 
-#include <ydb/library/aclib/base/types.h>
+#include <ydb/library/aclib/aclib.h>
 #include <ydb/library/actors/core/actor_bootstrapped.h>
+#include <ydb/library/actors/core/actorsystem.h>
 #include <ydb/library/actors/core/hfunc.h>
 #include <ydb/library/grpc/server/grpc_request.h>
 
 #include <ydb/public/api/protos/ydb_coordination.pb.h>
+
+#include <memory>
 
 namespace NKikimr {
 namespace NKesus {
@@ -37,10 +40,6 @@ public:
         : GrpcRequest_(std::move(grpcRequest))
     {}
 
-    static constexpr NKikimrServices::TActivity::EType ActorActivityType() {
-        return NKikimrServices::TActivity::KESUS_REQ;
-    }
-
     void Bootstrap(const TActorContext& ctx) {
         Y_UNUSED(ctx);
 
@@ -60,7 +59,7 @@ public:
 
         auto tokenVals = GrpcRequest_->GetPeerMetaValues(TStringBuf("x-ydb-auth-ticket"));
         if (!tokenVals.empty() && !tokenVals[0].empty()) {
-            UserToken_.Reset(new NACLib::TUserToken(TString{tokenVals[0]}));
+            UserToken_ = std::make_unique<NACLib::TUserToken>(TString{tokenVals[0]});
         }
 
         if (!Send(MakeKesusProxyServiceId(), new TEvKesusProxy::TEvResolveKesusProxy(Database_, KesusPath_))) {
@@ -83,13 +82,13 @@ private:
     }
 
     void FailWithKesusError(const NKikimrKesus::TKesusError& err) {
-        TString msg = err.IssuesSize() ? TString{err.GetIssues(0).GetMessage()} : TString{"Coordination error"};
+        TString msg = err.IssuesSize() ? TString{err.GetIssues(0).Getmessage()} : TString{"Coordination error"};
         GrpcRequest_->ReplyError(YdbStatusToGrpcStatus(err.GetStatus()), msg);
         PassAway();
     }
 
-    void HandleResolve(const TEvKesusProxy::TEvAttachProxyActor::TPtr& ev, const TActorContext& ctx) {
-        Y_UNUSED(ctx);
+    void HandleResolve(const TEvKesusProxy::TEvAttachProxyActor::TPtr& ev) {
+        const TActorContext& ctx = ActorContext();
         ProxyActor_ = ev->Get()->ProxyActor;
         SecurityObject_ = ev->Get()->SecurityObject;
 
@@ -107,13 +106,11 @@ private:
         Become(&TThis::StateWaitTablet);
     }
 
-    void HandleProxyError(const TEvKesusProxy::TEvProxyError::TPtr& ev, const TActorContext& ctx) {
-        Y_UNUSED(ctx);
+    void HandleProxyError(const TEvKesusProxy::TEvProxyError::TPtr& ev) {
         FailWithKesusError(ev->Get()->Error);
     }
 
-    void HandleListResult(const TEvKesus::TEvListSemaphoresResult::TPtr& ev, const TActorContext& ctx) {
-        Y_UNUSED(ctx);
+    void HandleListResult(const TEvKesus::TEvListSemaphoresResult::TPtr& ev) {
         const auto& record = ev->Get()->Record;
         if (record.GetError().GetStatus() != Ydb::StatusIds::SUCCESS) {
             FailWithKesusError(record.GetError());

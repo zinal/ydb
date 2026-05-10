@@ -503,4 +503,5 @@ message DescribeNodeResult {
 message ListSemaphoresRequest {
     string path = 1;
     bool include_details = 2;
+    Ydb.Operations.OperationParams operation_params = 3;
 }

@@ -1995,7 +1995,7 @@ public:
         const std::string& path,
         const TListSemaphoresSettings& settings)
     {
-        Ydb::Coordination::ListSemaphoresRequest request;
+        auto request = MakeOperationRequest<Ydb::Coordination::ListSemaphoresRequest>(settings);
         request.set_path(TStringType{path});
         request.set_include_details(settings.IncludeDetails_);
 

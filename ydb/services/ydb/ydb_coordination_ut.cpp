@@ -9,6 +9,7 @@
 #include <library/cpp/testing/unittest/tests_data.h>
 #include <library/cpp/testing/unittest/registar.h>
 
+#include <unordered_map>
 #include <unordered_set>
 
 namespace NKikimr {
@@ -65,6 +66,36 @@ struct TClientContext {
         return params;
     }
 };
+
+void AssertSemaphoreSessionsEqual(
+    const NYdb::NCoordination::TSemaphoreSession& a,
+    const NYdb::NCoordination::TSemaphoreSession& b)
+{
+    UNIT_ASSERT_VALUES_EQUAL(a.GetOrderId(), b.GetOrderId());
+    UNIT_ASSERT_VALUES_EQUAL(a.GetSessionId(), b.GetSessionId());
+    UNIT_ASSERT_VALUES_EQUAL(a.GetCount(), b.GetCount());
+    UNIT_ASSERT_VALUES_EQUAL(a.GetData(), b.GetData());
+    UNIT_ASSERT_VALUES_EQUAL(a.GetTimeout(), b.GetTimeout());
+}
+
+void AssertSemaphoreDescriptionMatchesDescribe(
+    const NYdb::NCoordination::TSemaphoreDescription& listDesc,
+    const NYdb::NCoordination::TSemaphoreDescription& describeDesc)
+{
+    UNIT_ASSERT_VALUES_EQUAL(listDesc.GetName(), describeDesc.GetName());
+    UNIT_ASSERT_VALUES_EQUAL(listDesc.GetData(), describeDesc.GetData());
+    UNIT_ASSERT_VALUES_EQUAL(listDesc.GetCount(), describeDesc.GetCount());
+    UNIT_ASSERT_VALUES_EQUAL(listDesc.GetLimit(), describeDesc.GetLimit());
+    UNIT_ASSERT_VALUES_EQUAL(listDesc.IsEphemeral(), describeDesc.IsEphemeral());
+    UNIT_ASSERT_VALUES_EQUAL(listDesc.GetOwners().size(), describeDesc.GetOwners().size());
+    for (size_t i = 0; i < listDesc.GetOwners().size(); ++i) {
+        AssertSemaphoreSessionsEqual(listDesc.GetOwners()[i], describeDesc.GetOwners()[i]);
+    }
+    UNIT_ASSERT_VALUES_EQUAL(listDesc.GetWaiters().size(), describeDesc.GetWaiters().size());
+    for (size_t i = 0; i < listDesc.GetWaiters().size(); ++i) {
+        AssertSemaphoreSessionsEqual(listDesc.GetWaiters()[i], describeDesc.GetWaiters()[i]);
+    }
+}
 
 template<class T>
 class TSimpleQueue : public TThrRefBase {
@@ -283,9 +314,36 @@ Y_UNIT_TEST_SUITE(TGRpcNewCoordinationClient) {
 
         ExpectSuccess(context.Client.CreateNode("/Root/node1"));
 
-        auto session = ExpectSuccess(context.Client.StartSession("/Root/node1"));
-        ExpectSuccess(session.CreateSemaphore("SemA", 3));
-        ExpectSuccess(session.CreateSemaphore("SemB", 2));
+        auto session1 = ExpectSuccess(
+            context.Client.StartSession("/Root/node1",
+                TSessionSettings().Timeout(TDuration::Seconds(30))));
+        ExpectSuccess(session1.CreateSemaphore("SemA", 3));
+        ExpectSuccess(session1.CreateSemaphore("SemB", 2));
+        ExpectSuccess(session1.UpdateSemaphore("SemA", "meta-a"));
+        UNIT_ASSERT(ExpectSuccess(
+            session1.AcquireSemaphore("SemA",
+                TAcquireSemaphoreSettings()
+                    .Count(2)
+                    .Data("owner-a"))));
+
+        auto session2 = ExpectSuccess(
+            context.Client.StartSession("/Root/node1",
+                TSessionSettings().Timeout(TDuration::Seconds(30))));
+        auto waitAcquire = session2.AcquireSemaphore("SemA",
+            TAcquireSemaphoreSettings()
+                .Count(2)
+                .Timeout(TDuration::Max()));
+
+        auto describeSemA = ExpectSuccess(
+            session1.DescribeSemaphore("SemA",
+                TDescribeSemaphoreSettings()
+                    .IncludeOwners()
+                    .IncludeWaiters()));
+        auto describeSemB = ExpectSuccess(
+            session1.DescribeSemaphore("SemB",
+                TDescribeSemaphoreSettings()
+                    .IncludeOwners()
+                    .IncludeWaiters()));
 
         {
             auto itFuture = context.Client.ListSemaphores(
@@ -303,6 +361,7 @@ Y_UNIT_TEST_SUITE(TGRpcNewCoordinationClient) {
                 }
                 UNIT_ASSERT_VALUES_EQUAL(part.GetSemaphoreDescription().GetOwners().size(), 0u);
                 UNIT_ASSERT_VALUES_EQUAL(part.GetSemaphoreDescription().GetWaiters().size(), 0u);
+                UNIT_ASSERT_VALUES_EQUAL(part.GetSemaphoreDescription().GetData(), "");
                 names.insert(part.GetSemaphoreDescription().GetName());
             }
             UNIT_ASSERT(names.count("SemA"));
@@ -316,17 +375,24 @@ Y_UNIT_TEST_SUITE(TGRpcNewCoordinationClient) {
             auto it = itFuture.ExtractValueSync();
             UNIT_ASSERT_C(it.IsSuccess(), TStatusDescription(it));
 
-            size_t n = 0;
+            std::unordered_map<std::string, NYdb::NCoordination::TSemaphoreDescription> byName;
             while (true) {
                 auto part = it.ReadNext().ExtractValueSync();
                 UNIT_ASSERT_C(part.IsSuccess(), TStatusDescription(part));
                 if (!part.HasSemaphoreDescription()) {
                     break;
                 }
-                ++n;
+                const auto& d = part.GetSemaphoreDescription();
+                byName[d.GetName()] = d;
             }
-            UNIT_ASSERT_VALUES_EQUAL(n, 2u);
+            UNIT_ASSERT_VALUES_EQUAL(byName.size(), 2u);
+            AssertSemaphoreDescriptionMatchesDescribe(byName.at("SemA"), describeSemA);
+            AssertSemaphoreDescriptionMatchesDescribe(byName.at("SemB"), describeSemB);
         }
+
+        UNIT_ASSERT(ExpectSuccess(session1.ReleaseSemaphore("SemA")));
+        UNIT_ASSERT(ExpectSuccess(std::move(waitAcquire)));
+        UNIT_ASSERT(ExpectSuccess(session2.ReleaseSemaphore("SemA")));
     }
 
     Y_UNIT_TEST(SessionMethods) {

@@ -651,26 +651,6 @@ void TKesusGRpcService::SetupIncomingRequests(NYdbGrpc::TLoggerPtr logger) {
 #error SETUP_KESUS_LIST_SEMAPHORES_STREAM macro already defined
 #endif
 
-#define SETUP_KESUS_LIST_SEMAPHORES_STREAM()                                                                \
-    for (auto* cq : CQS) {                                                                                  \
-        MakeIntrusive<::NKikimr::NGRpcService::TGRpcRequest<                                               \
-            Ydb::Coordination::ListSemaphoresRequest,                                                       \
-            Ydb::Coordination::SemaphoreDescription,                                                        \
-            TKesusGRpcService>>(                                                                            \
-            this,                                                                                           \
-            &Service_,                                                                                      \
-            cq,                                                                                             \
-            [this](NYdbGrpc::IRequestContextBase* reqCtx) {                                                 \
-                StartGRpcListSemaphores(ActorSystem_, reqCtx);                                             \
-            },                                                                                              \
-            &Ydb::Coordination::V1::CoordinationService::AsyncService::RequestListSemaphores,              \
-            "ListSemaphores",                                                                               \
-            logger,                                                                                         \
-            getCounterBlock("coordination", "ListSemaphores", true),                                       \
-            nullptr                                                                                         \
-        )->Run();                                                                                           \
-    }
-
 #define SETUP_KESUS_METHOD(methodName, methodCallback, rlMode, requestType, auditMode) \
     for (auto* cq : CQS) {                                                             \
         SETUP_RUNTIME_EVENT_METHOD(methodName,                                         \
@@ -692,6 +672,32 @@ void TKesusGRpcService::SetupIncomingRequests(NYdbGrpc::TLoggerPtr logger) {
 
 #define GET_LIMITER_BY_PATH(ICB_PATH) \
     getLimiter(#ICB_PATH, icb.ICB_PATH, DEFAULT_MAX_SESSIONS_INFLIGHT)
+
+// Server-streaming read (unary ListSemaphoresRequest, stream SemaphoreDescription). Uses TGRpcRequest's async-writer
+// path like Session, but runs in-process on the Kesus GRpc service instead of TEvCoordinationSessionRequest.
+#define SETUP_KESUS_LIST_SEMAPHORES_STREAM()                                                                \
+    for (auto* cq : CQS) {                                                                                  \
+        MakeIntrusive<::NKikimr::NGRpcService::TGRpcRequest<                                               \
+            Ydb::Coordination::ListSemaphoresRequest,                                                       \
+            Ydb::Coordination::SemaphoreDescription,                                                        \
+            TKesusGRpcService>>(                                                                            \
+            this,                                                                                           \
+            &Service_,                                                                                      \
+            cq,                                                                                             \
+            [this](NYdbGrpc::IRequestContextBase* reqCtx) {                                                 \
+                ::NKikimr::NGRpcService::ReportGrpcReqToMon(                                                \
+                    *ActorSystem_,                                                                          \
+                    reqCtx->GetPeer(),                                                                      \
+                    GetSdkBuildInfoIfNeeded(reqCtx));                                                       \
+                StartGRpcListSemaphores(ActorSystem_, reqCtx);                                             \
+            },                                                                                              \
+            &Ydb::Coordination::V1::CoordinationService::AsyncService::RequestListSemaphores,              \
+            "ListSemaphores",                                                                               \
+            logger,                                                                                         \
+            getCounterBlock("coordination", "ListSemaphores", true),                                       \
+            GET_LIMITER_BY_PATH(GRpcControls.RequestConfigs.CoordinationService_ListSemaphores.MaxInFlight) \
+        )->Run();                                                                                           \
+    }
 
 #define SETUP_KESUS_STREAM_METHOD(methodName, rlMode, requestType, auditMode, operationCallClass)          \
     for (auto* cq : CQS) {                                                                                 \
