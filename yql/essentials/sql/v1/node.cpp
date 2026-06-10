@@ -6,6 +6,7 @@
 #include <yql/essentials/ast/yql_ast_escaping.h>
 #include <yql/essentials/ast/yql_expr.h>
 #include <yql/essentials/core/sql_types/simple_types.h>
+#include <yql/essentials/core/langver/feature.gen.h>
 #include <yql/essentials/minikql/mkql_type_ops.h>
 #include <yql/essentials/parser/pg_catalog/catalog.h>
 #include <yql/essentials/utils/yql_panic.h>
@@ -681,13 +682,18 @@ bool IProxyNode::DoInit(TContext& ctx, ISource* src) {
 
 bool TLangVerProxyNode::DoInit(TContext& ctx, ISource* src) {
     if (ctx.Settings.Flags.contains("CheckBuiltinLangVer")) {
-        if (!ctx.EnsureBackwardCompatibleFeatureAvailable(GetPos(), Feature_, MinLangVer_)) {
-            return false;
-        }
-        if (!ctx.EnsureFeatureNotExpired(GetPos(), Feature_, MaxLangVer_)) {
+        const NYql::TFeature feature = {
+            .Name = Feature_,
+            .Description = Feature_,
+            .MinLangVer = MinLangVer_,
+            .MaxLangVer = MaxLangVer_,
+        };
+
+        if (!ctx.EnsureAvailable(GetPos(), feature)) {
             return false;
         }
     }
+
     return IProxyNode::DoInit(ctx, src);
 }
 
@@ -1866,9 +1872,42 @@ std::pair<TNodePtr, bool> IAggregation::AggregationTraits(const TNodePtr& type, 
     return {distinct ? Q(Y(Q(Name_), wrapped, BuildQuotedAtom(Pos_, DistinctKey_))) : Q(Y(Q(Name_), wrapped)), true};
 }
 
+TStringBuf IAggregation::GetGroupByPhase(ISource* src) const {
+    if (!src) {
+        return "";
+    }
+
+    return src->GetGroupBySuffix();
+}
+
+bool IAggregation::IsOverStatePhase(ISource* src) const {
+    TStringBuf suffix = GetGroupByPhase(src);
+    return !(suffix.empty() || suffix == "Combine" || suffix == "Finalize");
+}
+
+bool IAggregation::IsManyPhase(ISource* src) const {
+    TStringBuf suffix = GetGroupByPhase(src);
+    return suffix == "MergeManyFinalize";
+}
+
+bool IAggregation::IsFinalizingPhase(ISource* src) const {
+    TStringBuf suffix = GetGroupByPhase(src);
+    return suffix.empty() ||
+           suffix == "Finalize" ||
+           suffix == "MergeFinalize" ||
+           suffix == "MergeManyFinalize";
+}
+
 TNodePtr IAggregation::WrapIfOverState(const TNodePtr& input, bool overState, bool many, TContext& ctx) const {
     if (!overState) {
         return input;
+    }
+
+    if (AggMode_ == EAggregateMode::Distinct ||
+        AggMode_ == EAggregateMode::OverWindowDistinct)
+    {
+        ctx.Error(Pos_) << "Distinct is not supported with aggregation phases";
+        return nullptr;
     }
 
     auto extractor = GetExtractor(many, ctx);
@@ -3230,21 +3269,13 @@ bool TUdfNode::DoInit(TContext& ctx, ISource* src) {
             } else if (arg->GetLabel() == "ExtraMem") {
                 ExtraMem_ = MakeAtomFromExpression(Pos_, ctx, arg);
             } else if (arg->GetLabel() == "Depends") {
-                if (!ctx.EnsureBackwardCompatibleFeatureAvailable(
-                        Pos_,
-                        "Udf: named argument Depends",
-                        NYql::MakeLangVersion(2025, 3)))
-                {
+                if (!ctx.EnsureAvailable(Pos_, NYql::NFeature::UdfNamedArgumentDepends)) {
                     return false;
                 }
 
                 Depends_.push_back(arg);
             } else if (arg->GetLabel() == "Layers") {
-                if (!ctx.EnsureBackwardCompatibleFeatureAvailable(
-                        Pos_,
-                        "Udf: named argument Layers",
-                        NYql::MakeLangVersion(2025, 4)))
-                {
+                if (!ctx.EnsureAvailable(Pos_, NYql::NFeature::UdfNamedArgumentLayers)) {
                     return false;
                 }
 

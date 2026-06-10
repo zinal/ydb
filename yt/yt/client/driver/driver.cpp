@@ -2,7 +2,6 @@
 
 #include "admin_commands.h"
 #include "authentication_commands.h"
-#include "ban_commands.h"
 #include "bundle_controller_commands.h"
 #include "chaos_commands.h"
 #include "command.h"
@@ -193,7 +192,7 @@ public:
 
         REGISTER    (TWriteTableCommand,                   "write_table",                     Tabular,    Null,       true,  true , ApiVersion3);
         REGISTER    (TWriteTableCommand,                   "write_table",                     Tabular,    Structured, true,  true , ApiVersion4);
-        REGISTER_ALL(TGetTableColumnarStatisticsCommand,   "get_table_columnar_statistics",   Null,       Structured, false, false);
+        REGISTER_ALL(TGetTableColumnarStatisticsCommand,   "get_table_columnar_statistics",   Null,       Structured, false, true);
         REGISTER_ALL(TReadTableCommand,                    "read_table",                      Null,       Tabular,    false, true );
         REGISTER_ALL(TReadBlobTableCommand,                "read_blob_table",                 Null,       Binary,     false, true );
         REGISTER_ALL(TLocateSkynetShareCommand,            "locate_skynet_share",             Null,       Structured, false, true );
@@ -428,10 +427,6 @@ public:
         REGISTER    (TPingDistributedWriteFileSessionCommand,  "ping_distributed_write_file_session",Null, Null,      true,  false, ApiVersion4);
         REGISTER    (TFinishDistributedWriteFileSessionCommand, "finish_distributed_write_file_session",Null,Null,    true,  false, ApiVersion4);
         REGISTER    (TWriteFileFragmentCommand,            "write_file_fragment",             Binary,     Structured, true,   true, ApiVersion4);
-
-        REGISTER    (TGetUserBannedCommand,                "get_user_banned",                 Null,       Structured, false, true,  ApiVersion4);
-        REGISTER    (TSetUserBannedCommand,                "set_user_banned",                 Null,       Null,       true,  true,  ApiVersion4);
-        REGISTER    (TListBannedUsersCommand,              "list_banned_users",               Null,       Structured, false, false, ApiVersion4);
 
         if (Config_->EnableInternalCommands) {
             REGISTER_ALL(TReadHunksCommand,                 "read_hunks",                             Null,       Structured, false, true );

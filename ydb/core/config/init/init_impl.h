@@ -896,8 +896,15 @@ struct TCommonAppOptions {
                 }
 
                 if (!nodeId) {
-                    throw TInitializationException("YDB-CFG10") << "cannot detect node ID for " << env.HostName() << ":" << InterconnectPort
-                        << " and for " << env.FQDNHostName() << ":" << InterconnectPort << Endl;
+                    const TString hostname = env.HostName();
+                    const TString fqdn = env.FQDNHostName();
+                    TStringBuilder msg;
+                    msg << "no static node entry for " << hostname << ":" << InterconnectPort;
+                    if (fqdn != hostname) {
+                        msg << " or " << fqdn << ":" << InterconnectPort;
+                    }
+                    msg << " in cluster configuration";
+                    throw TInitializationException("YDB-CFG10") << msg;
                 }
                 return nodeId;
             } else {
@@ -1361,6 +1368,10 @@ public:
             throw TInitializationException("YDB-CFG13") << errors.front();
         }
 
+        if (const auto it = Labels.find("empty_domain_during_node_registration"); it != Labels.end()) {
+            AddLabelToAppConfig(it->first, it->second);
+        }
+
         Logger.Out() << "configured" << Endl;
     }
 
@@ -1476,6 +1487,8 @@ public:
         }
 
         TString domainName = DeduceNodeDomain(cf, AppConfig);
+
+        Labels["empty_domain_during_node_registration"] = domainName.empty() ? "true" : "false";
 
         if (!cf.NodeHost) {
             cf.NodeHost = Env.FQDNHostName();

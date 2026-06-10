@@ -262,6 +262,7 @@ PEERDIR(
     ydb/core/actorlib_impl
     ydb/core/backup/common
     ydb/core/base
+    ydb/library/json_index
     ydb/core/change_exchange
     ydb/core/engine
     ydb/core/engine/minikql
@@ -315,6 +316,7 @@ END()
 
 RECURSE_FOR_TESTS(
     build_index/ut
+    ut_bloom_filter
     ut_borrowed_compaction
     ut_change_collector
     ut_change_exchange

@@ -1,14 +1,21 @@
-#include <algorithm>
-#include <queue>
-#include <thread>
-#include <library/cpp/resource/resource.h>
+#include "yql_yt_coordinator_impl.h"
+
 #include <yt/cpp/mapreduce/common/helpers.h>
+
 #include <yt/yql/providers/yt/fmr/utils/yql_yt_table_data_service_key.h>
+#include <yt/yql/providers/yt/fmr/coordinator/operation_manager/impl/yql_yt_default_stage_operation_manager.h>
+
 #include <yql/essentials/utils/log/log.h>
 #include <yql/essentials/utils/yql_panic.h>
 #include <yql/essentials/utils/failure_injector/failure_injector.h>
-#include <yt/yql/providers/yt/fmr/coordinator/operation_manager/impl/yql_yt_default_stage_operation_manager.h>
-#include "yql_yt_coordinator_impl.h"
+
+#include <library/cpp/resource/resource.h>
+
+#include <util/system/condvar.h>
+
+#include <algorithm>
+#include <queue>
+#include <thread>
 
 namespace NYql::NFmr {
 
@@ -75,6 +82,7 @@ public:
         SessionInactivityTimeout_(settings.SessionInactivityTimeout),
         HealthCheckInterval_(settings.HealthCheckInterval),
         DefaultFmrOperationSpec_(settings.DefaultFmrOperationSpec),
+        RequireFmrJob_(settings.RequireFmrJob),
         YtCoordinatorService_(ytCoordinatorService),
         GcService_(gcService)
     {
@@ -84,15 +92,18 @@ public:
         CheckWorkersAliveStatus();
         CheckGatewaySessionsActivity();
         StartGcThread();
+        StartWaitForOperationsThread();
         GcService_->ClearAll();
     }
 
     ~TFmrCoordinator() {
         StopCoordinator_ = true;
+        OperationFinishedCondVar_.BroadCast();
         ClearIdempotencyKeysThread_.join();
         CheckWorkersAliveStatusThread_.join();
         CheckGatewaySessionsActivityThread_.join();
         GcThread_.join();
+        WaitForOperationsThread_.join();
     }
 
     NThreading::TFuture<TStartOperationResponse> StartOperation(const TStartOperationRequest& request) override {
@@ -107,6 +118,10 @@ public:
         }
         auto operationId = GenerateId();
         YQL_ENSURE(Sessions_.contains(request.SessionId), "Session " << request.SessionId << " must be opened before starting operations");
+        if (RequireFmrJob_ && !request.FmrJob) {
+            auto error = TFmrError{.Component = EFmrComponent::Coordinator, .Reason = EFmrErrorReason::Unknown, .ErrorMessage = "FmrJob must be set in StartOperation request"};
+            return MakeFailedResponse(TStartOperationResponse(EOperationStatus::Failed, ""), error, "StartOperation validation failed: ");
+        }
         auto& sessionInfo = Sessions_[request.SessionId];
         sessionInfo.OperationIds.emplace_back(operationId);
         if (IdempotencyKey) {
@@ -128,6 +143,7 @@ public:
             .YtResources = request.YtResources,
             .FmrResources = request.FmrResources,
             .FmrOperationSpec = fmrOperationSpec,
+            .FmrJob = request.FmrJob,
         };
 
         auto stageError = ExecuteCurrentStage(operationId);
@@ -198,7 +214,13 @@ public:
         for (auto& generatedTask: generateResult.Tasks) {
             TString taskId = GenerateId();
 
-            TTask::TPtr createdTask = MakeTask(generatedTask.TaskType, taskId, generatedTask.TaskParams, operationInfo.SessionId, clusterConnections, operationInfo.Files, operationInfo.YtResources, generateResult.FmrResourceTasks, fmrOperationSpec);
+            std::vector<TYtResourceInfo> taskYtResources = operationInfo.YtResources;
+            if (operationInfo.FmrJob) {
+                TYtResourceInfo fmrJobResource = *operationInfo.FmrJob;
+                fmrJobResource.RichPath.FileName(TString("fmrjob"));
+                taskYtResources.insert(taskYtResources.begin(), std::move(fmrJobResource));
+            }
+            TTask::TPtr createdTask = MakeTask(generatedTask.TaskType, taskId, generatedTask.TaskParams, operationInfo.SessionId, clusterConnections, operationInfo.Files, taskYtResources, generateResult.FmrResourceTasks, fmrOperationSpec);
             Tasks_[taskId] = TCoordinatorTaskInfo{.Task = createdTask, .TaskStatus = ETaskStatus::Accepted, .OperationId = operationId, .NumRetries = 0};
             TasksToRun_.emplace(createdTask, taskId);
             operationInfo.TaskIds.emplace(taskId);
@@ -276,6 +298,9 @@ public:
                 ClearTask(taskId); // Task hasn't begun running, remove info
             }
         }
+
+        Operations_[operationId].OperationStatus = EOperationStatus::Aborted;
+        OperationFinishedCondVar_.BroadCast();
 
         return NThreading::MakeFuture(TDeleteOperationResponse(EOperationStatus::Aborted));
     }
@@ -365,7 +390,7 @@ public:
                     SetUnfinishedTaskStatus(taskId, taskStatus, requestTaskState->TaskErrorMessage);
                     isTaskToDelete = (TaskToDeleteIds_.contains(taskId) && Tasks_[taskId].TaskStatus != ETaskStatus::InProgress);
                     auto statistics = requestTaskState->Stats;
-                    YQL_CLOG(TRACE, FastMapReduce) << " Task with id " << taskId << " has current status " << taskStatus << Endl;
+                    YQL_CLOG(TRACE, FastMapReduce) << "Worker " << workerId << " task " << taskId << " status " << taskStatus;
                     bool isOperationCompleted = (GetOperationStatus(operationId) == EOperationStatus::Completed);
                     for (auto& [fmrTableId, tableStats]: statistics.OutputTables) {
                         Operations_[operationId].OutputTableIds.emplace(fmrTableId.TableId);
@@ -426,9 +451,15 @@ public:
                     YQL_CLOG(ERROR, FastMapReduce) << error->ErrorMessage << ", taskId: " << taskId;
                     SetUnfinishedTaskStatus(taskId, ETaskStatus::Failed, *error);
                     canRunTask = false;
+                } else {
+                    // Record ownership at dispatch time, not when the worker first reports the task back.
+                    // Otherwise a worker that dies in the gap between receiving a task and its next heartbeat
+                    // leaves the coordinator with no record of the task, so failover never reschedules it.
+                    Workers_[workerId].TaskIds.emplace(taskId);
                 }
             }
             if (canRunTask) {
+                YQL_CLOG(DEBUG, FastMapReduce) << "Dispatching task " << taskId << " to worker " << workerId;
                 currentTasksToRun.emplace_back(task);
                 ++filledSlots;
             }
@@ -550,6 +581,31 @@ public:
         YQL_CLOG(DEBUG, FastMapReduce) << "Successfully prepared operation with partitionId=" << partitionId
             << ", tasksNum=" << OperationPartitions_[partitionId].TaskInputs.size();
         return NThreading::MakeFuture(TPrepareOperationResponse{.PartitionId = partitionId, .TasksNum = OperationPartitions_[partitionId].TaskInputs.size()});
+    }
+
+    NThreading::TFuture<TWaitForOperationsResponse> WaitForOperations(const TWaitForOperationsRequest& request) override {
+        auto promise = NThreading::NewPromise<TWaitForOperationsResponse>();
+        auto future = promise.GetFuture();
+
+        std::vector<TOperationIdWithStatus> finalized;
+        with_lock(Mutex_) {
+            auto watchedIds = std::unordered_set<TString>(request.OperationIds.begin(), request.OperationIds.end());
+            finalized = CollectFinalized(watchedIds);
+            if (finalized.empty()) {
+                WaitOperationsWaiters_.push_back(TWaiterInfo{
+                    .WatchedIds = std::move(watchedIds),
+                    .Deadline = TimeProvider_->Now() + request.Timeout,
+                    .Promise = std::move(promise),
+                });
+                OperationFinishedCondVar_.Signal();
+            }
+        }
+
+        if (!finalized.empty()) {
+            promise.SetValue(TWaitForOperationsResponse{.FinalizedOperations = std::move(finalized)});
+        }
+
+        return future;
     }
 
 private:
@@ -767,6 +823,10 @@ private:
             auto& errorMessages = operationInfo.ErrorMessages;
             errorMessages.emplace_back(*taskErrorMessage);
         }
+        auto opStatus = operationInfo.OperationStatus;
+        if (opStatus == EOperationStatus::Completed || opStatus == EOperationStatus::Failed) {
+            OperationFinishedCondVar_.BroadCast();
+        }
     }
 
     void HandleOperationCompleted(const TString& operationId) {
@@ -974,6 +1034,7 @@ private:
         std::vector<TYtResourceInfo> YtResources;
         std::vector<TFmrResourceOperationInfo> FmrResources;
         NYT::TNode FmrOperationSpec;
+        TMaybe<TYtResourceInfo> FmrJob;
 
         ui64 CompletedJobsCount = 0;  // Number of tasks that transitioned to Completed
         ui64 LostJobsCount = 0;       // Number of tasks lost due to worker failure and re-enqueued
@@ -1007,6 +1068,7 @@ private:
     std::unordered_map<ui64, TWorkerInfo> Workers_; // WorkerId -> Info About It
 
     TMutex Mutex_;
+    TCondVar OperationFinishedCondVar_;
     const ui32 WorkersNum_;
     std::unordered_map<ui32, TString> WorkerToVolatileId_; // worker id -> volatile id  // TODO - убрать это
     const TIntrusivePtr<IRandomProvider> RandomProvider_;
@@ -1025,6 +1087,7 @@ private:
     std::unordered_map<TString, TTableStats> OperationTableStats_; // TableId -> Statistic for fmr table, filled when operation completes
 
     NYT::TNode DefaultFmrOperationSpec_;
+    const bool RequireFmrJob_;
     IYtCoordinatorService::TPtr YtCoordinatorService_; // Needed for partitioning of yt tables
     IFmrGcService::TPtr GcService_;
 
@@ -1037,6 +1100,91 @@ private:
     TMutex GcQueueMutex_;
     std::queue<TGcTask> GcQueue_;
     std::thread GcThread_;
+
+    struct TWaiterInfo {
+        std::unordered_set<TString> WatchedIds;
+        TInstant Deadline;
+        NThreading::TPromise<TWaitForOperationsResponse> Promise;
+        std::vector<TOperationIdWithStatus> Finalized;  // populated under Mutex_, consumed outside
+    };
+
+    // Must be called under Mutex_.
+    std::vector<TOperationIdWithStatus> CollectFinalized(const std::unordered_set<TString>& watchedIds) {
+        std::vector<TOperationIdWithStatus> finalized;
+        for (const auto& operationId : watchedIds) {
+            auto opIt = Operations_.find(operationId);
+            EOperationStatus status = (opIt != Operations_.end())
+                ? opIt->second.OperationStatus
+                : EOperationStatus::NotFound;
+            bool isTerminal = (status == EOperationStatus::Completed
+                || status == EOperationStatus::Failed
+                || status == EOperationStatus::Aborted
+                || status == EOperationStatus::NotFound);
+            if (isTerminal) {
+                std::vector<TFmrError> errors;
+                if (opIt != Operations_.end()) {
+                    errors = opIt->second.ErrorMessages;
+                }
+                finalized.push_back(TOperationIdWithStatus{
+                    .OperationId = operationId,
+                    .Status = status,
+                    .ErrorMessages = std::move(errors),
+                });
+            }
+        }
+        return finalized;
+    }
+
+    void StartWaitForOperationsThread() {
+        auto waitFunc = [this]() {
+            while (!StopCoordinator_) {
+                std::vector<TWaiterInfo> toResolve;
+                TInstant nextDeadline = TInstant::Max();
+
+                with_lock(Mutex_) {
+                    TInstant now = TimeProvider_->Now();
+                    for (auto it = WaitOperationsWaiters_.begin(); it != WaitOperationsWaiters_.end();) {
+                        auto finalized = CollectFinalized(it->WatchedIds);
+                        if (!finalized.empty() || now >= it->Deadline) {
+                            it->Finalized = std::move(finalized);
+                            toResolve.push_back(std::move(*it));
+                            it = WaitOperationsWaiters_.erase(it);
+                        } else {
+                            if (it->Deadline < nextDeadline) {
+                                nextDeadline = it->Deadline;
+                            }
+                            ++it;
+                        }
+                    }
+                }
+
+                for (auto& waiter : toResolve) {
+                    waiter.Promise.SetValue(TWaitForOperationsResponse{.FinalizedOperations = std::move(waiter.Finalized)});
+                }
+
+                with_lock(Mutex_) {
+                    if (WaitOperationsWaiters_.empty() && !StopCoordinator_) {
+                        OperationFinishedCondVar_.WaitI(Mutex_);
+                    } else if (nextDeadline != TInstant::Max()) {
+                        OperationFinishedCondVar_.WaitD(Mutex_, nextDeadline);
+                    }
+                }
+            }
+
+            // Drain remaining waiters on shutdown with empty responses — outside the lock.
+            std::vector<TWaiterInfo> remaining;
+            with_lock(Mutex_) {
+                remaining = std::move(WaitOperationsWaiters_);
+            }
+            for (auto& waiter : remaining) {
+                waiter.Promise.SetValue(TWaitForOperationsResponse{});
+            }
+        };
+        WaitForOperationsThread_ = std::thread(waitFunc);
+    }
+
+    std::vector<TWaiterInfo> WaitOperationsWaiters_;
+    std::thread WaitForOperationsThread_;
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////////
 

@@ -50,6 +50,7 @@ TYqlRunTool::TYqlRunTool()
     GetRunOptions().ResultsFormat = NYson::EYsonFormat::Pretty;
     GetRunOptions().CustomTests = true;
     GetRunOptions().EnableLineage = true;
+    GetRunOptions().EnableCredentials = true;
 
     GetRunOptions().AddOptExtension([this](NLastGetopt::TOpts& opts) {
         opts.AddLongOption('t', "table", "Table mapping").RequiredArgument("table@file")
@@ -117,7 +118,11 @@ TYqlRunTool::TYqlRunTool()
 }
 
 IYtGateway::TPtr TYqlRunTool::CreateYtGateway() {
-    auto yqlNativeServices = NFile::TYtFileServices::Make(GetFuncRegistry().Get(), TablesMapping_, GetFileStorage(), TmpDir_, KeepTemp_, TablesDirMapping_);
+    THashMap<TString, TString> secureParams;
+    GetRunOptions().Credentials->ForEach([&](const TString& key, const TCredential& cred) {
+        secureParams["token:" + key] = cred.Content;
+    });
+    auto yqlNativeServices = NFile::TYtFileServices::Make(GetFuncRegistry().Get(), TablesMapping_, GetFileStorage(), TmpDir_, KeepTemp_, TablesDirMapping_, secureParams);
     return CreateYtFileGateway(yqlNativeServices);
 }
 

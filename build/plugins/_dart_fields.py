@@ -681,7 +681,9 @@ class LintConfigs:
 
         # default config
         linter_name = spec_args['NAME'][0]
-        default_configs_path = spec_args.get('DEFAULT_CONFIGS')[0]
+        if not (default_configs_path := spec_args.get('DEFAULT_CONFIGS')):
+            return
+        default_configs_path = default_configs_path[0]
         assert_file_exists(unit, default_configs_path)
         config = get_linter_configs(unit, default_configs_path).get(linter_name)
         if not config:
@@ -714,7 +716,7 @@ class LintConfigs:
 class LintExtraParams:
     KEY = 'LINT-EXTRA-PARAMS'
 
-    _CUSTOM_CLANG_FORMAT_ALLOWED_PATHS = ('ads', 'bigrt', 'grut', 'yabs', 'maps', 'yt')
+    _CUSTOM_CLANG_FORMAT_ALLOWED_PATHS = ('ads', 'alice/agents/booking', 'bigrt', 'grut', 'yabs', 'maps', 'yt')
     # HACK: YA-3039 Due to the mass usage of PY_NAMESPACE / TOP_LEVEL in these projects
     # it makes it difficult to run ruff checks in build root - it complains
     # about unsorted imports a lot. Let them run in source root instead.
@@ -1208,6 +1210,14 @@ class TsCheckType:
     @classmethod
     def value(cls, unit, flat_args, spec_args):
         return spec_args.get("TS_CHECK_TYPE", None)
+
+
+class TsCheckHasCoverage:
+    KEY = 'TS-CHECK-HAS-COVERAGE'
+
+    @classmethod
+    def value(cls, unit, flat_args, spec_args):
+        return spec_args.get("TS_CHECK_HAS_COVERAGE", "no")
 
 
 class TestedProjectFilename:

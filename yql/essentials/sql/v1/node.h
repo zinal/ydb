@@ -392,7 +392,12 @@ protected:
 
 class TLangVerProxyNode: public IProxyNode {
 public:
-    TLangVerProxyNode(TPosition pos, TNodePtr parent, TString feature, NYql::TLangVersion minLangVer, NYql::TLangVersion maxLangVer)
+    TLangVerProxyNode(
+        TPosition pos,
+        TNodePtr parent,
+        TString feature,
+        NYql::TLangVersion minLangVer,
+        NYql::TLangVersion maxLangVer)
         : IProxyNode(pos, std::move(parent))
         , Feature_(std::move(feature))
         , MinLangVer_(minLangVer)
@@ -411,7 +416,13 @@ private:
     NYql::TLangVersion MaxLangVer_;
 };
 
-inline TNodeResult WrapWithLangVerProxy(TPosition pos, TNodeResult node, const TString& feature, NYql::TLangVersion minLangVer, NYql::TLangVersion maxLangVer) {
+inline TNodeResult WrapWithLangVerProxy(
+    TPosition pos,
+    TNodeResult node,
+    const TString& feature,
+    NYql::TLangVersion minLangVer,
+    NYql::TLangVersion maxLangVer)
+{
     if (node && (minLangVer != NYql::UnknownLangVersion || maxLangVer != NYql::UnknownLangVersion)) {
         return TNonNull(TNodePtr(new TLangVerProxyNode(pos, *node, feature, minLangVer, maxLangVer)));
     }
@@ -1096,7 +1107,13 @@ private:
 protected:
     IAggregation(TPosition pos, TString name, TString func, EAggregateMode mode);
     TAstNode* Translate(TContext& ctx) const override;
+
+    TStringBuf GetGroupByPhase(ISource* src) const;
+    bool IsOverStatePhase(ISource* src) const;
+    bool IsManyPhase(ISource* src) const;
+    bool IsFinalizingPhase(ISource* src) const;
     TNodePtr WrapIfOverState(const TNodePtr& input, bool overState, bool many, TContext& ctx) const;
+
     TNodePtr GetExtractor(bool many, TContext& ctx) const;
 
     // `YqlSelect` aggregation needs a lambda without a `row` parameter
