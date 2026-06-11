@@ -11,6 +11,7 @@ void DoCreateCoordinationNode(std::unique_ptr<IRequestOpCtx> p, const IFacilityP
 void DoAlterCoordinationNode(std::unique_ptr<IRequestOpCtx> p, const IFacilityProvider& f);
 void DoDropCoordinationNode(std::unique_ptr<IRequestOpCtx> p, const IFacilityProvider& f);
 void DoDescribeCoordinationNode(std::unique_ptr<IRequestOpCtx> p, const IFacilityProvider& f);
+void DoListSemaphoresCoordinationNode(std::unique_ptr<IRequestOpCtx> p, const IFacilityProvider& f);
 
 }
 }
