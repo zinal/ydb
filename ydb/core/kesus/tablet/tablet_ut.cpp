@@ -80,6 +80,54 @@ Y_UNIT_TEST_SUITE(TKesusTest) {
         ctx.SetConfig(12345, MakeConfig("/foo/bar/baz"), 41, Ydb::StatusIds::PRECONDITION_FAILED);
     }
 
+    Y_UNIT_TEST(TestListSemaphoresFromTablet) {
+        TTestContext ctx;
+        ctx.Setup();
+
+        // Locks are acquired via TEvAcquireSemaphore and appear in Semaphores; keep this test focused on
+        // explicit CreateSemaphore entries only (no proxy/session lock setup needed for ListSemaphores).
+
+        UNIT_ASSERT_VALUES_EQUAL(ctx.ListSemaphoresFromTablet(false).GetSemaphoreDescriptions().size(), 0u);
+
+        ctx.CreateSemaphore("Alpha", 1);
+        ctx.CreateSemaphore("Beta", 1);
+        ctx.UpdateSemaphore("Alpha", "meta-alpha");
+
+        {
+            const auto r = ctx.ListSemaphoresFromTablet(false);
+            UNIT_ASSERT_VALUES_EQUAL(r.GetSemaphoreDescriptions().size(), 2u);
+            ui32 alphaCount = 0;
+            ui32 betaCount = 0;
+            for (const auto& d : r.GetSemaphoreDescriptions()) {
+                UNIT_ASSERT_VALUES_EQUAL(d.owners_size(), 0);
+                UNIT_ASSERT_VALUES_EQUAL(d.waiters_size(), 0);
+                if (d.name() == "Alpha") {
+                    ++alphaCount;
+                } else if (d.name() == "Beta") {
+                    ++betaCount;
+                }
+            }
+            UNIT_ASSERT_VALUES_EQUAL(alphaCount, 1u);
+            UNIT_ASSERT_VALUES_EQUAL(betaCount, 1u);
+        }
+
+        {
+            const auto r = ctx.ListSemaphoresFromTablet(true);
+            UNIT_ASSERT_VALUES_EQUAL(r.GetSemaphoreDescriptions().size(), 2u);
+            for (const auto& d : r.GetSemaphoreDescriptions()) {
+                UNIT_ASSERT_VALUES_EQUAL(d.owners_size(), 0u);
+                UNIT_ASSERT_VALUES_EQUAL(d.waiters_size(), 0u);
+                if (d.name() == "Alpha") {
+                    UNIT_ASSERT_VALUES_EQUAL(d.data(), "meta-alpha");
+                } else if (d.name() == "Beta") {
+                    UNIT_ASSERT_VALUES_EQUAL(d.data(), "");
+                } else {
+                    UNIT_FAIL("unexpected semaphore");
+                }
+            }
+        }
+    }
+
     Y_UNIT_TEST(TestRegisterProxy) {
         TTestContext ctx;
         ctx.Setup();
