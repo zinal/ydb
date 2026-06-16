@@ -59,7 +59,6 @@
 #include "src/core/lib/iomgr/iomgr_fwd.h"
 #include "src/core/lib/iomgr/tcp_server.h"
 #include "src/core/lib/security/context/security_context.h"
-#include "src/core/lib/security/security_connector/security_connector.h"
 #include "src/core/lib/security/transport/secure_endpoint.h"
 #include "src/core/lib/security/transport/tsi_error.h"
 #include "src/core/lib/slice/slice.h"
@@ -70,51 +69,10 @@
 #include "src/core/tsi/transport_security_grpc.h"
 
 #define GRPC_INITIAL_HANDSHAKE_BUFFER_SIZE 256
-#define GRPC_SERVER_URI_CHANNEL_ARG "grpc.server_uri"
 
 namespace grpc_core {
 
 namespace {
-
-const char* HandshakeDirection(const grpc_security_connector* connector) {
-  if (connector == nullptr) {
-    return "unknown";
-  }
-  if (dynamic_cast<const grpc_channel_security_connector*>(connector) !=
-      nullptr) {
-    return "outgoing";
-  }
-  if (dynamic_cast<const grpc_server_security_connector*>(connector) !=
-      nullptr) {
-    return "incoming";
-  }
-  return "unknown";
-}
-
-void LogSslHandshakeFailure(const grpc_security_connector* connector,
-                            const ChannelArgs& channel_args,
-                            grpc_endpoint* endpoint, grpc_error_handle error,
-                            const TString& tsi_handshake_error) {
-  if (error.ok() || endpoint == nullptr) {
-    return;
-  }
-  const char* direction = HandshakeDirection(connector);
-  const y_absl::string_view local = grpc_endpoint_get_local_address(endpoint);
-  const y_absl::string_view peer = grpc_endpoint_get_peer(endpoint);
-  TString message = y_absl::StrCat(
-      "SSL handshake failed (", direction, "): local=", local, " peer=", peer);
-  if (const auto target =
-          channel_args.GetString(GRPC_SERVER_URI_CHANNEL_ARG);
-      target.has_value() && !target->empty()) {
-    y_absl::StrAppend(&message, " target=", *target);
-  }
-  y_absl::StrAppend(&message, " error=", error.ToString());
-  if (!tsi_handshake_error.empty() &&
-      !y_absl::StrContains(message, tsi_handshake_error)) {
-    y_absl::StrAppend(&message, " (", tsi_handshake_error, ")");
-  }
-  gpr_log(GPR_ERROR, "%s", message.c_str());
-}
 
 class SecurityHandshaker : public Handshaker {
  public:
@@ -248,10 +206,6 @@ void SecurityHandshaker::HandshakeFailedLocked(grpc_error_handle error) {
     error = GRPC_ERROR_CREATE("Handshaker shutdown");
   }
   if (!is_shutdown_) {
-    if (!error.ok() && args_ != nullptr && args_->endpoint != nullptr) {
-      LogSslHandshakeFailure(connector_.get(), args_->args, args_->endpoint,
-                             error, tsi_handshake_error_);
-    }
     tsi_handshaker_shutdown(handshaker_);
     // TODO(ctiller): It is currently necessary to shutdown endpoints
     // before destroying them, even if we know that there are no

@@ -1519,7 +1519,7 @@ static tsi_result ssl_handshaker_do_handshake(tsi_ssl_handshaker* impl,
       default: {
         char err_str[256];
         ERR_error_string_n(ERR_get_error(), err_str, sizeof(err_str));
-        gpr_log(GPR_DEBUG, "Handshake failed with fatal error %s: %s.",
+        gpr_log(GPR_ERROR, "Handshake failed with fatal error %s: %s.",
                 grpc_core::SslErrorString(ssl_result), err_str);
         if (error != nullptr) {
           *error = y_absl::StrCat(grpc_core::SslErrorString(ssl_result), ": ",
