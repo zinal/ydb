@@ -83,6 +83,7 @@ SRCS(
 
 PEERDIR(
     ydb/library/actors/core
+    ydb/library/grpc/common
     ydb/library/actors/http
     ydb/core/actorlib_impl
     ydb/core/base
