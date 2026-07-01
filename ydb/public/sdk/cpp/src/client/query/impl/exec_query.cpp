@@ -65,7 +65,9 @@ public:
     {}
 
     ~TReaderImpl() {
-        StreamProcessor_->Cancel();
+        if (!Finished_) {
+            StreamProcessor_->Cancel();
+        }
     }
 
     bool IsFinished() const {
