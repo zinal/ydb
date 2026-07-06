@@ -1,6 +1,7 @@
 LIBRARY(kikimr_backup)
 
 PEERDIR(
+    library/cpp/streams/zstd
     library/cpp/bucket_quoter
     library/cpp/logger
     library/cpp/regex/pcre
@@ -26,6 +27,7 @@ PEERDIR(
 
 SRCS(
     backup.cpp
+    data_format.cpp
     query_builder.cpp
     query_uploader.cpp
     util.cpp

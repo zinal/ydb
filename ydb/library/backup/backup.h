@@ -2,6 +2,8 @@
 
 #include <ydb/public/sdk/cpp/include/ydb-cpp-sdk/client/types/status/status.h>
 
+#include <ydb/library/backup/data_format.h>
+
 #include <util/generic/maybe.h>
 #include <util/folder/path.h>
 #include <util/stream/str.h>
@@ -44,7 +46,8 @@ void BackupFolder(
     bool avoidCopy = false,
     bool savePartialResult = false,
     bool preservePoolKinds = false,
-    bool ordered = false);
+    bool ordered = false,
+    const TCompressionSettings& compression = {});
 
 void BackupCluster(const TDriver& driver, TFsPath folderPath);
 void BackupDatabase(const TDriver& driver, const TString& database, TFsPath folderPath);
@@ -53,7 +56,7 @@ void BackupDatabase(const TDriver& driver, const TString& database, TFsPath fold
 TMaybe<TValue> ProcessResultSet(
     TStringStream& ss,
     TResultSetParser& resultSetParser,
-    TFile* dataFile = nullptr,
+    IOutputStream* dataFile = nullptr,
     const NTable::TTableDescription* desc = nullptr);
 
 } // NBackup

@@ -88,6 +88,8 @@ To import data to the table, use the [YQL `REPLACE` command](../../../../yql/ref
 
 - `-i <PATH>` or `--input <PATH>`: Path to the directory in the client system from which the data will be imported.
 
+`tools restore` automatically detects compressed table data files (`data_XX.csv.zst`) produced by [`export s3`](../export-s3.md) or [`tools dump`](../tools-dump.md) with the `--compression` option.
+
 ### Optional parameters {#optional}
 
 `[options]` – optional parameters of the command:

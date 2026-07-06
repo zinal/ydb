@@ -10,6 +10,7 @@
 #include <ydb/public/lib/ydb_cli/common/scheme_path_completer.h>
 #include <ydb/public/lib/ydb_cli/common/pg_dump_parser.h>
 #include <ydb/public/lib/ydb_cli/dump/dump.h>
+#include <ydb/library/backup/data_format.h>
 #include <ydb/library/backup/util.h>
 
 #include <library/cpp/regex/pcre/regexp.h>
@@ -89,6 +90,15 @@ void TCommandDump::Config(TConfig& config) {
         .ChoicesWithCompletion({{"database", "Consistent snapshot of all tables"}, {"table", "Per-table snapshot"}});
     config.Opts->AddLongOption("ordered", "Preserve order by primary key in backup files.")
         .DefaultValue(defaults.Ordered_).StoreTrue(&Ordered);
+
+    {
+        TStringBuilder codecHelp;
+        codecHelp << "Codec used to compress table data. Available options: zstd, zstd-N"
+            << " (N is compression level in range [1, 22], e.g. zstd-3)";
+        config.Opts->AddLongOption("compression", codecHelp)
+            .RequiredArgument("STRING").StoreResult(&Compression)
+            .Completer(NLastGetopt::NComp::Choice({{"zstd", "ZSTD default level"}}));
+    }
 }
 
 void TCommandDump::ExtractParams(TConfig& config) {
@@ -111,7 +121,8 @@ int TCommandDump::Run(TConfig& config) {
         .AvoidCopy(AvoidCopy)
         .SavePartialResult(SavePartialResult)
         .PreservePoolKinds(PreservePoolKinds)
-        .Ordered(Ordered);
+        .Ordered(Ordered)
+        .Compression(NBackup::ParseCompression(Compression));
 
     auto log = std::make_shared<TLog>(CreateLogBackend("cerr", VerbosityLevelToELogPriority(config.VerbosityLevel)));
     log->SetFormatter(GetPrefixLogFormatter(""));

@@ -67,6 +67,8 @@ The `tools dump` command dumps the schema objects to the client file system in t
 
 - `--ordered`: Sorts rows in the exported tables by the primary key.
 
+- `--compression <STRING>`: Compresses table data using the same format as [`export s3`](../export-s3.md). Available values: `zstd` (default compression level) and `zstd-N` (where `N` is a compression level from 1 to 22). Compressed data files are saved as `data_XX.csv.zst`.
+
 ## Examples
 
 {% include [ydb-cli-profile.md](../../../../_includes/ydb-cli-profile.md) %}

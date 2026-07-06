@@ -114,10 +114,6 @@ static TString JoinDatabasePath(const TString& basePath, const TString& path) {
     }
 }
 
-static TString CreateDataFileName(ui32 i) {
-    return Sprintf("data_%02d.csv", i);
-}
-
 static TString CreateTemporalBackupName() {
     return "backup_" + TInstant::Now().FormatLocalTime("%Y%m%dT%H%M%S"); // YYYYMMDDThhmmss
 }
@@ -235,7 +231,7 @@ void PrintValue(IOutputStream& out, TValueParser& parser) {
 }
 
 TMaybe<TValue> ProcessResultSet(TStringStream& ss,
-        TResultSetParser& resultSetParser, TFile* dataFile, const NTable::TTableDescription* desc) {
+        TResultSetParser& resultSetParser, IOutputStream* dataFile, const NTable::TTableDescription* desc) {
     TMaybe<TValue> lastReadPK;
 
     TStackVec<TValueParser*, 32> colParsers;
@@ -278,7 +274,7 @@ TMaybe<TValue> ProcessResultSet(TStringStream& ss,
     return lastReadPK;
 }
 
-static void Flush(TFile& tmpFile, TStringStream& ss, TMaybe<TValue>& lastWrittenPK, const TMaybe<TValue>& lastReadPK) {
+static void Flush(TTableDataFile& tmpFile, TStringStream& ss, TMaybe<TValue>& lastWrittenPK, const TMaybe<TValue>& lastReadPK) {
     tmpFile.Write(ss.Data(), ss.Size());
     ss.Clear();
 
@@ -287,15 +283,25 @@ static void Flush(TFile& tmpFile, TStringStream& ss, TMaybe<TValue>& lastWritten
     }
 }
 
-static void CloseAndRename(TFile& tmpFile, const TFsPath& fileName) {
+static void CloseAndRename(TTableDataFile& tmpFile, const TFsPath& fileName) {
+    const TString tmpPath = tmpFile.GetPath();
     tmpFile.Close();
 
     LOG_D("Write data into " << fileName.GetPath().Quote());
-    TFsPath(tmpFile.GetName()).RenameTo(fileName);
+    TFsPath(tmpPath).RenameTo(fileName);
+}
+
+static TString IncompleteDataFileName(const TCompressionSettings& compression) {
+    TString fileName = NDump::NFiles::IncompleteData().FileName;
+    if (compression.IsCompressed()) {
+        fileName.append(".zst");
+    }
+    return fileName;
 }
 
 TMaybe<TValue> TryReadTable(TDriver driver, const NTable::TTableDescription& desc, const TString& fullTablePath,
-        const TFsPath& folderPath, TMaybe<TValue> lastWrittenPK, ui32 *fileCounter, bool ordered)
+        const TFsPath& folderPath, TMaybe<TValue> lastWrittenPK, ui32 *fileCounter, bool ordered,
+        const TCompressionSettings& compression)
 {
     TMaybe<NTable::TTablePartIterator> iter;
     auto readTableJob = [fullTablePath, &lastWrittenPK, &iter, &ordered](NTable::TSession session) -> TStatus {
@@ -322,13 +328,15 @@ TMaybe<TValue> TryReadTable(TDriver driver, const NTable::TTableDescription& des
         auto resultSetStreamPart = iter->ReadNext().ExtractValueSync();
         if (!resultSetStreamPart.IsSuccess() && resultSetStreamPart.EOS()) {
             // Table is empty, so create empty data file
-            TFile dataFile(folderPath.Child(CreateDataFileName((*fileCounter)++)), CreateAlways | WrOnly);
+            TTableDataFile dataFile(folderPath.Child(DataFileName((*fileCounter)++, compression)), compression);
+            dataFile.Close();
             return {};
         }
         VerifyStatus(resultSetStreamPart, TStringBuilder() << "Read next part of " << fullTablePath.Quote() << " failed");
         TResultSet resultSetCurrent = resultSetStreamPart.ExtractPart();
 
-        auto tmpFile = TFile(folderPath.Child(NDump::NFiles::IncompleteData().FileName), CreateAlways | WrOnly);
+        auto tmpFile = MakeHolder<TTableDataFile>(
+            folderPath.Child(IncompleteDataFileName(compression)), compression);
         TStringStream ss;
         ss.Reserve(IO_BUFFER_SIZE);
 
@@ -340,7 +348,7 @@ TMaybe<TValue> TryReadTable(TDriver driver, const NTable::TTableDescription& des
                 nextResult = iter->ReadNext();
             }
             auto resultSetParser = TResultSetParser(resultSetCurrent);
-            lastReadPK = ProcessResultSet(ss, resultSetParser, &tmpFile, &desc);
+            lastReadPK = ProcessResultSet(ss, resultSetParser, tmpFile.Get(), &desc);
 
             // Next
             if (resultSetCurrent.Truncated()) {
@@ -351,9 +359,9 @@ TMaybe<TValue> TryReadTable(TDriver driver, const NTable::TTableDescription& des
                     } else {
                         LOG_D("Stream was closed unexpectedly: " << resultSetStreamPart.GetIssues().ToOneLineString());
                         if (ss.Data()) {
-                            Flush(tmpFile, ss, lastWrittenPK, lastReadPK);
+                            Flush(*tmpFile, ss, lastWrittenPK, lastReadPK);
                         }
-                        CloseAndRename(tmpFile, folderPath.Child(CreateDataFileName((*fileCounter)++)));
+                        CloseAndRename(*tmpFile, folderPath.Child(DataFileName((*fileCounter)++, compression)));
                         return lastWrittenPK;
                     }
                 }
@@ -362,22 +370,23 @@ TMaybe<TValue> TryReadTable(TDriver driver, const NTable::TTableDescription& des
                 break;
             }
             if (ss.Size() > IO_BUFFER_SIZE) {
-                Flush(tmpFile, ss, lastWrittenPK, lastReadPK);
+                Flush(*tmpFile, ss, lastWrittenPK, lastReadPK);
             }
-            if (tmpFile.GetLength() > FILE_SPLIT_THRESHOLD) {
-                CloseAndRename(tmpFile, folderPath.Child(CreateDataFileName((*fileCounter)++)));
-                tmpFile = TFile(folderPath.Child(NDump::NFiles::IncompleteData().FileName), CreateAlways | WrOnly);
+            if (tmpFile->GetLength() > FILE_SPLIT_THRESHOLD) {
+                CloseAndRename(*tmpFile, folderPath.Child(DataFileName((*fileCounter)++, compression)));
+                tmpFile = MakeHolder<TTableDataFile>(
+                    folderPath.Child(IncompleteDataFileName(compression)), compression);
             }
         }
-        Flush(tmpFile, ss, lastWrittenPK, lastReadPK);
-        CloseAndRename(tmpFile, folderPath.Child(CreateDataFileName((*fileCounter)++)));
+        Flush(*tmpFile, ss, lastWrittenPK, lastReadPK);
+        CloseAndRename(*tmpFile, folderPath.Child(DataFileName((*fileCounter)++, compression)));
     }
 
     return {};
 }
 
 void ReadTable(TDriver driver, const NTable::TTableDescription& desc, const TString& fullTablePath,
-        const TFsPath& folderPath, bool ordered) {
+        const TFsPath& folderPath, bool ordered, const TCompressionSettings& compression) {
     LOG_D("Read table " << fullTablePath.Quote());
 
     TMaybe<TValue> lastWrittenPK;
@@ -385,7 +394,7 @@ void ReadTable(TDriver driver, const NTable::TTableDescription& desc, const TStr
     i64 retries = READ_TABLE_RETRIES;
     ui32 fileCounter = 0;
     do {
-        lastWrittenPK = TryReadTable(driver, desc, fullTablePath, folderPath, lastWrittenPK, &fileCounter, ordered);
+        lastWrittenPK = TryReadTable(driver, desc, fullTablePath, folderPath, lastWrittenPK, &fileCounter, ordered, compression);
         if (lastWrittenPK && retries) {
             LOG_D("Retry read table from key: " << TString{FormatValueYson(*lastWrittenPK)}.Quote());
         }
@@ -569,7 +578,8 @@ void BackupChangefeeds(TDriver driver, const TString& tablePath, const TFsPath& 
 }
 
 void BackupTable(TDriver driver, const TString& dbPrefix, const TString& backupPrefix, const TString& path,
-        const TFsPath& folderPath, bool schemaOnly, bool preservePoolKinds, bool ordered) {
+        const TFsPath& folderPath, bool schemaOnly, bool preservePoolKinds, bool ordered,
+        const TCompressionSettings& compression) {
     Y_ENSURE(!path.empty());
     Y_ENSURE(path.back() != '/', path.Quote() << " path contains / in the end");
 
@@ -608,7 +618,7 @@ void BackupTable(TDriver driver, const TString& dbPrefix, const TString& backupP
     BackupPermissions(driver, originalTablePath, folderPath);
 
     if (!schemaOnly) {
-        ReadTable(driver, desc, fullPath, folderPath, ordered);
+        ReadTable(driver, desc, fullPath, folderPath, ordered, compression);
     }
 }
 
@@ -916,6 +926,7 @@ bool SkipItem(const TVector<TRegExMatch>& exclusionPatterns, const THashSet<TStr
 void BackupFolderImpl(TDriver driver, const TString& database, const TString& dbPrefix, const TString& backupPrefix,
         const TFsPath folderPath, const TVector<TRegExMatch>& exclusionPatterns,
         bool schemaOnly, bool useConsistentCopyTable, bool avoidCopy, bool preservePoolKinds, bool ordered,
+        const TCompressionSettings& compression,
         NYql::TIssues& issues
 ) {
     TFile(folderPath.Child(NDump::NFiles::Incomplete().FileName), CreateAlways).Close();
@@ -941,7 +952,7 @@ void BackupFolderImpl(TDriver driver, const TString& database, const TString& db
             if (schemaOnly) {
                 if (dbIt.IsTable()) {
                     BackupTable(driver, dbIt.GetTraverseRoot(), backupPrefix, dbIt.GetRelPath(),
-                            childFolderPath, schemaOnly, preservePoolKinds, ordered);
+                            childFolderPath, schemaOnly, preservePoolKinds, ordered, compression);
                     childFolderPath.Child(NDump::NFiles::Incomplete().FileName).DeleteIfExists();
                 }
             } else if (!avoidCopy) {
@@ -1033,7 +1044,7 @@ void BackupFolderImpl(TDriver driver, const TString& database, const TString& db
                     copiedTablesStatuses.erase(dbIt.GetFullPath());
                 }
                 BackupTable(driver, dbIt.GetTraverseRoot(), avoidCopy ? dbIt.GetTraverseRoot() : backupPrefix, dbIt.GetRelPath(),
-                        childFolderPath, schemaOnly, preservePoolKinds, ordered);
+                        childFolderPath, schemaOnly, preservePoolKinds, ordered, compression);
                 if (!avoidCopy) {
                     DropTable(driver, tmpTablePath);
                 }
@@ -1293,6 +1304,7 @@ void BackupDatabaseImpl(TDriver driver, const TString& dbPath, const TFsPath& fo
                 /* avoidCopy */ false,
                 /* preservePoolKinds */ false,
                 /* ordered */ false,
+                TCompressionSettings::None(),
                 issues
             );
 
@@ -1346,7 +1358,8 @@ void CheckedCreateBackupFolder(const TFsPath& folderPath) {
 // folderPath - relative path to folder in local filesystem where backup will be stored
 void BackupFolder(const TDriver& driver, const TString& database, const TString& relDbPath, TFsPath folderPath,
         const TVector<TRegExMatch>& exclusionPatterns,
-        bool schemaOnly, bool useConsistentCopyTable, bool avoidCopy, bool savePartialResult, bool preservePoolKinds, bool ordered) {
+        bool schemaOnly, bool useConsistentCopyTable, bool avoidCopy, bool savePartialResult, bool preservePoolKinds,
+        bool ordered, const TCompressionSettings& compression) {
     TString temporalBackupPostfix = CreateTemporalBackupName();
     if (!folderPath) {
         folderPath = temporalBackupPostfix;
@@ -1367,7 +1380,7 @@ void BackupFolder(const TDriver& driver, const TString& database, const TString&
 
         NYql::TIssues issues;
         BackupFolderImpl(driver, database, dbPrefix, tmpDbFolder, folderPath, exclusionPatterns,
-            schemaOnly, useConsistentCopyTable, avoidCopy, preservePoolKinds, ordered, issues
+            schemaOnly, useConsistentCopyTable, avoidCopy, preservePoolKinds, ordered, compression, issues
         );
 
         if (issues) {

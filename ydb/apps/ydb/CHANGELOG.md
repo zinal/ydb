@@ -1,4 +1,8 @@
 
+## Unreleased ##
+
+* Added `--compression` option to `ydb tools dump` to write table data in the same ZSTD format as `export s3` (`data_XX.csv.zst`). `ydb tools restore` automatically reads both plain and compressed data files.
+
 ## 2.33.0 ##
 
 * The `ydb` interactive AI mode can now search the YDB documentation.

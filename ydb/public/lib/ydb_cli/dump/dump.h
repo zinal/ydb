@@ -1,5 +1,7 @@
 #pragma once
 
+#include <ydb/library/backup/data_format.h>
+
 #include <ydb/public/sdk/cpp/include/ydb-cpp-sdk/client/types/status/status.h>
 #include <ydb/public/sdk/cpp/include/ydb-cpp-sdk/client/types/fluent_settings_helpers.h>
 #include <ydb/public/sdk/cpp/include/ydb-cpp-sdk/client/types/request_settings.h>
@@ -18,7 +20,7 @@ inline namespace Dev {
 
 namespace NDump {
 
-TString DataFileName(ui32 id);
+using NBackup::DataFileName;
 
 /// dump
 struct TDumpSettings: public TOperationRequestSettings<TDumpSettings> {
@@ -42,6 +44,7 @@ struct TDumpSettings: public TOperationRequestSettings<TDumpSettings> {
     FLUENT_SETTING_DEFAULT(bool, SavePartialResult, false);
     FLUENT_SETTING_DEFAULT(bool, PreservePoolKinds, false);
     FLUENT_SETTING_DEFAULT(bool, Ordered, false);
+    FLUENT_SETTING_DEFAULT(NBackup::TCompressionSettings, Compression, {});
 
     bool UseConsistentCopyTable() const {
         switch (ConsistencyLevel_) {

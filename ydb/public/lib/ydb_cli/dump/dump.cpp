@@ -2,17 +2,12 @@
 #include "dump_impl.h"
 #include "restore_impl.h"
 
+#include <ydb/library/backup/data_format.h>
 #include <ydb/public/sdk/cpp/include/ydb-cpp-sdk/client/driver/driver.h>
 
 #include <library/cpp/logger/log.h>
 
-#include <util/string/printf.h>
-
 namespace NYdb::NDump {
-
-TString DataFileName(ui32 id) {
-    return Sprintf("data_%02d.csv", id);
-}
 
 class TClient::TImpl {
 public:

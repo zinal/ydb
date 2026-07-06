@@ -2,6 +2,7 @@
 #include "restore_impl.h"
 #include "restore_import_data.h"
 
+#include <ydb/library/backup/data_format.h>
 #include <ydb/public/sdk/cpp/include/ydb-cpp-sdk/client/discovery/discovery.h>
 #include <ydb/public/sdk/cpp/include/ydb-cpp-sdk/client/proto/accessor.h>
 #include <ydb/public/sdk/cpp/include/ydb-cpp-sdk/client/value/value.h>
@@ -173,14 +174,7 @@ bool IsOperationStarted(TStatus operationStatus) {
 }
 
 TVector<TFsPath> CollectDataFiles(const TFsPath& fsPath) {
-    TVector<TFsPath> dataFiles;
-    ui32 dataFileId = 0;
-    TFsPath dataFile = fsPath.Child(DataFileName(dataFileId));
-    while (dataFile.Exists()) {
-        dataFiles.push_back(std::move(dataFile));
-        dataFile = fsPath.Child(DataFileName(++dataFileId));
-    }
-    return dataFiles;
+    return NBackup::CollectDataFiles(fsPath);
 }
 
 TRestoreResult CombineResults(const TVector<TFuture<TRestoreResult>>& results) {
@@ -2052,7 +2046,7 @@ TRestoreResult TRestoreClient::RestoreData(
 
                     LOG_D("Read data from " << dataFile.GetPath().Quote());
 
-                    TFileInput input(dataFile, settings.FileBufferSize_);
+                    NBackup::TDataFileLineReader input(dataFile, settings.FileBufferSize_);
                     TString line;
                     ui64 lineNo = 0;
 
