@@ -64,6 +64,15 @@ message TEvDescribeSessions {
     string KesusPath = 1;
 }
 
+message TEvListSemaphores {
+    string KesusPath = 1;
+}
+
+message TEvListSemaphoresResult {
+    TKesusError Error = 1;
+    repeated string SemaphoreNames = 2;
+}
+
 message TEvDescribeSessionsResult {
     message TSessionDescription {
         uint64 SessionId = 1;
