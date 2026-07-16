@@ -43,6 +43,31 @@ Y_UNIT_TEST(TestRegistration) {
     auto result = op.Function(&args[0]);
     UNIT_ASSERT_EQUAL(result.Get<ui32>(), 5);
 }
+Y_UNIT_TEST(TestAggrMinMaxUuid) {
+    const auto functionRegistry = CreateBuiltinRegistry();
+
+    const std::array<TArgType, 3U> argTypes = {
+        {{NUdf::TDataType<NUdf::TUuid>::Id, false},
+         {NUdf::TDataType<NUdf::TUuid>::Id, false},
+         {NUdf::TDataType<NUdf::TUuid>::Id, false}}};
+
+    const auto minOp = functionRegistry->GetBuiltin("AggrMin", argTypes.data(), argTypes.size());
+    UNIT_ASSERT(minOp.Function);
+
+    const auto maxOp = functionRegistry->GetBuiltin("AggrMax", argTypes.data(), argTypes.size());
+    UNIT_ASSERT(maxOp.Function);
+
+    const std::array<TArgType, 3U> optionalArgTypes = {
+        {{NUdf::TDataType<NUdf::TUuid>::Id, true},
+         {NUdf::TDataType<NUdf::TUuid>::Id, true},
+         {NUdf::TDataType<NUdf::TUuid>::Id, true}}};
+
+    const auto minOptOp = functionRegistry->GetBuiltin("AggrMin", optionalArgTypes.data(), optionalArgTypes.size());
+    UNIT_ASSERT(minOptOp.Function);
+
+    const auto maxOptOp = functionRegistry->GetBuiltin("AggrMax", optionalArgTypes.data(), optionalArgTypes.size());
+    UNIT_ASSERT(maxOptOp.Function);
+}
 } // Y_UNIT_TEST_SUITE(TFunctionRegistryTest)
 
 } // namespace NMiniKQL

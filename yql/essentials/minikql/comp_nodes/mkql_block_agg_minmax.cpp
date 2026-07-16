@@ -1077,6 +1077,9 @@ std::unique_ptr<typename TTag::TPreparedAggregator> PrepareMinMax(TTupleType* tu
             return PrepareMinMaxFixed<TTag, double, IsMin>(dataType, isOptional, isScalar, filterColumn, argColumn);
         case NUdf::EDataSlot::Decimal:
             return PrepareMinMaxFixed<TTag, NYql::NDecimal::TInt128, IsMin>(dataType, isOptional, isScalar, filterColumn, argColumn);
+        case NUdf::EDataSlot::Uuid:
+        case NUdf::EDataSlot::DyNumber:
+            return std::make_unique<TPreparedMinMaxBlockGenericAggregator<TTag, IsMin>>(argType, filterColumn, argColumn);
         default:
             throw yexception() << "Unsupported MIN/MAX input type";
     }
