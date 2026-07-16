@@ -1,12 +1,14 @@
 #pragma once
 
 #include <ydb/public/sdk/cpp/include/ydb-cpp-sdk/client/driver/driver.h>
+#include <ydb/public/sdk/cpp/include/ydb-cpp-sdk/client/types/status/status.h>
 
 namespace Ydb {
 namespace Coordination {
     class Config;
     class CreateNodeRequest;
     class DescribeNodeResult;
+    class ListSemaphoresRequest;
     class SemaphoreDescription;
     class SemaphoreSession;
 }
@@ -205,6 +207,40 @@ struct TDescribeNodeSettings : public TOperationRequestSettings<TDescribeNodeSet
 
 ////////////////////////////////////////////////////////////////////////////////
 
+struct TListSemaphoresSettings : public TOperationRequestSettings<TListSemaphoresSettings> {
+    FLUENT_SETTING_DEFAULT(bool, IncludeDetails, false);
+};
+
+class TListSemaphoresPart : public TStreamPartStatus {
+public:
+    bool HasSemaphoreDescription() const {
+        return Description_.has_value();
+    }
+
+    const TSemaphoreDescription& GetSemaphoreDescription() const {
+        return *Description_;
+    }
+
+    explicit TListSemaphoresPart(TStatus&& status)
+        : TStreamPartStatus(std::move(status))
+    {}
+
+    TListSemaphoresPart(TStatus&& status, TSemaphoreDescription&& description)
+        : TStreamPartStatus(std::move(status))
+        , Description_(std::move(description))
+    {}
+
+private:
+    std::optional<TSemaphoreDescription> Description_;
+};
+
+using TAsyncListSemaphoresPart = NThreading::TFuture<TListSemaphoresPart>;
+
+class TListSemaphoresIterator;
+using TAsyncListSemaphoresIterator = NThreading::TFuture<TListSemaphoresIterator>;
+
+////////////////////////////////////////////////////////////////////////////////
+
 class TSession;
 
 using TSessionResult = TResult<TSession>;
@@ -296,6 +332,8 @@ struct TDistributedLockSettings;
 
 class TClient {
 public:
+    class TImpl;
+
     TClient(const TDriver& driver, const TCommonClientSettings& settings = TCommonClientSettings());
 
     ~TClient();
@@ -315,9 +353,25 @@ public:
     TAsyncDescribeNodeResult DescribeNode(const std::string& path,
         const TDescribeNodeSettings& settings = TDescribeNodeSettings());
 
+    TAsyncListSemaphoresIterator ListSemaphores(const std::string& path,
+        const TListSemaphoresSettings& settings = TListSemaphoresSettings());
+
 private:
-    class TImpl;
     std::shared_ptr<TImpl> Impl_;
+};
+
+class TListSemaphoresIterator : public TStatus {
+    friend class TClient::TImpl;
+
+public:
+    TAsyncListSemaphoresPart ReadNext();
+
+private:
+    struct TReaderImpl;
+
+    TListSemaphoresIterator(std::shared_ptr<TReaderImpl> impl, TPlainStatus&& status);
+
+    std::shared_ptr<TReaderImpl> ReaderImpl_;
 };
 
 ////////////////////////////////////////////////////////////////////////////////

@@ -564,6 +564,16 @@ private:
         }
     }
 
+    void Handle(TEvKesus::TEvListSemaphores::TPtr& ev) {
+        auto msg = ev->Release();
+        HandleDirectRequest(ev->Sender, ev->Cookie, std::move(msg));
+    }
+
+    void Handle(TEvKesus::TEvListSemaphoresResult::TPtr& ev) {
+        auto msg = ev->Release();
+        HandleDirectResponse(ev->Cookie, std::move(msg));
+    }
+
     void Handle(TEvKesus::TEvAttachSession::TPtr& ev) {
         YDB_LOG_TRACE_CTX(TActivationContext::AsActorContext(), "Received TEvAttachSession",
             {"selfId", SelfId()},
@@ -920,6 +930,8 @@ private:
             hFunc(TEvKesus::TEvUpdateSemaphoreResult, Handle);
             hFunc(TEvKesus::TEvDeleteSemaphore, Handle);
             hFunc(TEvKesus::TEvDeleteSemaphoreResult, Handle);
+            hFunc(TEvKesus::TEvListSemaphores, Handle);
+            hFunc(TEvKesus::TEvListSemaphoresResult, Handle);
             hFunc(TEvKesus::TEvAttachSession, Handle);
             hFunc(TEvKesus::TEvAttachSessionResult, Handle);
             hFunc(TEvKesus::TEvProxyExpired, Handle);
