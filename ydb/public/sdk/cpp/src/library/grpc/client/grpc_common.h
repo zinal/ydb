@@ -5,8 +5,10 @@
 
 #include <ydb/public/sdk/cpp/include/ydb-cpp-sdk/type_switcher.h>
 #include <ydb/public/sdk/cpp/include/ydb-cpp-sdk/library/grpc_common/constants.h>
+#include <ydb/library/grpc/common/log_context.h>
 
 #include <util/datetime/base.h>
+#include <util/string/builder.h>
 #include <unordered_map>
 #include <string>
 #include <memory>
@@ -86,6 +88,8 @@ inline std::shared_ptr<grpc::ChannelInterface> CreateChannelInterface(const TGRp
     }
     std::shared_ptr<grpc::ChannelCredentials> channelCredentials = nullptr;
     if (config.EnableSsl || !config.SslCredentials.pem_root_certs.empty()) {
+        NYdbGrpc::NGrpcLog::RegisterOutgoingClientTarget(
+            TStringBuilder() << "grpcs://" << config.Locator);
         channelCredentials = grpc::SslCredentials(config.SslCredentials);
     } else {
         channelCredentials = grpc::InsecureChannelCredentials();
