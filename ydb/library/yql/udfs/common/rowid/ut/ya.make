@@ -1,4 +1,4 @@
-UNITTEST_FOR(ydb/library/yql/udfs/common/rowid)
+UNITTEST()
 
 SIZE(SMALL)
 
