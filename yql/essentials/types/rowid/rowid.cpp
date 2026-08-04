@@ -5,18 +5,36 @@
 #include <util/stream/output.h>
 
 namespace NKikimr::NRowid {
+namespace {
 
-bool IsValidRowidBase64(TStringBuf buf) {
+bool DecodeRowidBase64(TStringBuf buf, char* out) {
     if (buf.size() != ROWID_BASE64_LEN) {
         return false;
     }
+
     try {
-        char decoded[Base64DecodeBufSize(ROWID_BASE64_LEN)];
-        const size_t n = Base64StrictDecode(decoded, buf.begin(), buf.end());
-        return n == ROWID_LEN;
+        constexpr size_t paddedLen = ROWID_BASE64_LEN + 1;
+        char padded[paddedLen];
+        std::memcpy(padded, buf.data(), ROWID_BASE64_LEN);
+        padded[ROWID_BASE64_LEN] = '=';
+
+        char decoded[Base64DecodeBufSize(paddedLen)];
+        const size_t n = Base64StrictDecode(decoded, padded, padded + paddedLen);
+        if (n != ROWID_LEN) {
+            return false;
+        }
+        std::memcpy(out, decoded, ROWID_LEN);
+        return true;
     } catch (...) {
         return false;
     }
+}
+
+} // namespace
+
+bool IsValidRowidBase64(TStringBuf buf) {
+    char decoded[ROWID_LEN];
+    return DecodeRowidBase64(buf, decoded);
 }
 
 TString RowidBytesToBase64(TStringBuf in) {
@@ -32,20 +50,7 @@ void RowidBytesToBase64(TStringBuf in, IOutputStream& out) {
 }
 
 bool ParseRowidBase64(TStringBuf buf, char* out) {
-    if (buf.size() != ROWID_BASE64_LEN) {
-        return false;
-    }
-    try {
-        char decoded[Base64DecodeBufSize(ROWID_BASE64_LEN)];
-        const size_t n = Base64StrictDecode(decoded, buf.begin(), buf.end());
-        if (n != ROWID_LEN) {
-            return false;
-        }
-        std::memcpy(out, decoded, ROWID_LEN);
-        return true;
-    } catch (...) {
-        return false;
-    }
+    return DecodeRowidBase64(buf, out);
 }
 
 } // namespace NKikimr::NRowid
