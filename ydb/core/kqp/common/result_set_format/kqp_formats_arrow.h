@@ -32,7 +32,7 @@ constexpr size_t MAX_VARIANT_DEPTH = 2;
  * - Temporal types: Date, Datetime, Timestamp, Interval (and their extended variants)
  * - String types: Utf8, Json, JsonDocument (serialized to string), DyNumber (serialized to string) -> arrow::StringType
  * - Binary types: String, Yson -> arrow::BinaryType
- * - Fixed-size binary: Decimal, Uuid -> arrow::FixedSizeBinaryType
+ * - Fixed-size binary: Decimal, Uuid, Rowid -> arrow::FixedSizeBinaryType
  * - Timezone-aware: TzDate, TzDatetime, TzTimestamp -> arrow::StructType<datetimeType, arrow::StringType (serialized name of timezone)>
  *
  * @tparam TFunc Callable type accepting a single template parameter (Arrow type)
@@ -94,6 +94,7 @@ bool SwitchMiniKQLDataTypeToArrowType(NUdf::EDataSlot typeId, TFunc&& callback) 
 
         case NUdf::EDataSlot::Decimal:
         case NUdf::EDataSlot::Uuid:
+        case NUdf::EDataSlot::Rowid:
             return callback.template operator()<arrow::FixedSizeBinaryType>();
 
         case NUdf::EDataSlot::TzDate:
