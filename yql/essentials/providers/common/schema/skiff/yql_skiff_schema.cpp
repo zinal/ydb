@@ -94,6 +94,7 @@ struct TSkiffTypeLoader {
             case NUdf::EDataSlot::Utf8:
             case NUdf::EDataSlot::Json:
             case NUdf::EDataSlot::Uuid:
+            case NUdf::EDataSlot::Rowid:
             case NUdf::EDataSlot::DyNumber:
             case NUdf::EDataSlot::JsonDocument:
                 return NYT::TNode()("wire_type", "string32");
