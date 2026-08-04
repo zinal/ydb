@@ -278,9 +278,8 @@ public:
         for (ui32 i = 0; i < argsCount; ++i) {
             args->Add(argsTypeInspector.GetElementType(i));
         }
-        args.Done();
-        builder.Returns<TDataType<TRowid>>();
-        builder.SupportsNullArguments();
+        args->Done();
+        builder.Returns<TRowid>();
 
         if (!typesOnly) {
             builder.Implementation(new TNewRowid(builder.GetSourcePosition()));
@@ -362,9 +361,8 @@ public:
         for (ui32 i = 0; i < argsCount; ++i) {
             args->Add(argsTypeInspector.GetElementType(i));
         }
-        args.Done();
-        builder.Returns(builder.List()->Item<TDataType<TRowid>>().Build());
-        builder.SupportsNullArguments();
+        args->Done();
+        builder.Returns(builder.List()->Item<TRowid>().Build());
 
         if (!typesOnly) {
             builder.Implementation(new TNewRowGroup(builder.GetSourcePosition(), prefixFromRowid));
