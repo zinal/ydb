@@ -229,11 +229,16 @@ using TLargeBoundedString = TBoundedString<0x200000, NTypeIds::String2m, NNames:
 namespace NNames {
     extern const char Decimal[8];
     extern const char Uuid[5];
+    extern const char Rowid[6];
 }
 
 class TDecimal : public IIntegerPair<ui64, i64, NTypeIds::Decimal, NNames::Decimal> {};
 
 class TUuid : public TTypedType<char[16], TUuid, NTypeIds::Uuid, NNames::Uuid> {
+public:
+};
+
+class TRowid : public TTypedType<char[14], TRowid, NTypeIds::Rowid, NNames::Rowid> {
 public:
 };
 
@@ -289,6 +294,7 @@ class TInterval64 : public IIntegerTypeWithKeyString<i64, NTypeIds::Interval64, 
     xx(Interval, TInterval, __VA_ARGS__) \
     xx(DyNumber, TDyNumber, __VA_ARGS__) \
     xx(Uuid, TUuid, __VA_ARGS__) \
+    xx(Rowid, TRowid, __VA_ARGS__) \
     xx(Date32, TDate32, __VA_ARGS__) \
     xx(Datetime64, TDatetime64, __VA_ARGS__) \
     xx(Timestamp64, TTimestamp64, __VA_ARGS__) \

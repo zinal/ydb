@@ -17,6 +17,7 @@
 #include <yql/essentials/providers/common/provider/yql_provider.h>
 #include <yql/essentials/providers/common/schema/expr/yql_expr_schema.h>
 #include <yql/essentials/providers/common/transform/yql_visit.h>
+#include <yql/essentials/types/rowid/rowid.h>
 #include <yql/essentials/providers/result/provider/yql_result_provider.h>
 
 namespace NYql {
@@ -831,6 +832,11 @@ void FillLiteralProto(const NNodes::TCoDataCtor& literal, Ydb::TypedValue& proto
             const ui64* uuidData = reinterpret_cast<const ui64*>(value.data());
             protoValue.set_low_128(uuidData[0]);
             protoValue.set_high_128(uuidData[1]);
+            break;
+        }
+        case EDataSlot::Rowid: {
+            YQL_ENSURE(value.size() == NKikimr::NRowid::ROWID_LEN, "Invalid Rowid literal size");
+            protoValue.set_bytes_value(value.data(), value.size());
             break;
         }
 

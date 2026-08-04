@@ -14,6 +14,7 @@ PEERDIR(
     ydb/public/sdk/cpp/src/client/types/fatal_error_handlers
     ydb/public/sdk/cpp/src/library/decimal
     ydb/public/sdk/cpp/src/library/uuid
+    yql/essentials/types/rowid
 )
 
 END()

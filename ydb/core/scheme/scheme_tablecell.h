@@ -342,6 +342,13 @@ inline int CompareTypedCells(const TCell& a, const TCell& b, const NScheme::TTyp
         return CompareCellsAsByteString(a, b, type.IsDescending());
     }
 
+    case NKikimr::NScheme::NTypeIds::Rowid:
+    {
+        Y_ASSERT(a.Size() == 14);
+        Y_ASSERT(b.Size() == 14);
+        return CompareCellsAsByteString(a, b, type.IsDescending());
+    }
+
     case NKikimr::NScheme::NTypeIds::Decimal:
     {
         Y_ASSERT(a.Size() == sizeof(std::pair<ui64, i64>));
@@ -505,6 +512,7 @@ inline ui64 GetValueHash(NScheme::TTypeInfo info, const TCell& cell) {
     case NYql::NProto::TypeIds::JsonDocument:
     case NYql::NProto::TypeIds::DyNumber:
     case NYql::NProto::TypeIds::Uuid:
+    case NYql::NProto::TypeIds::Rowid:
         return ComputeHash(TStringBuf{cell.Data(), cell.Size()});
 
     default:

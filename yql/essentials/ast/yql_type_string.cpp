@@ -93,6 +93,7 @@ enum EToken {
     TOKEN_ERROR = -60,
     TOKEN_LINEAR = -61,
     TOKEN_DYNAMICLINEAR = -62,
+    TOKEN_ROWID = -63,
 
     // identifiers
     TOKEN_IDENTIFIER = -100,
@@ -149,6 +150,7 @@ EToken TokenTypeFromStr(TStringBuf str)
         {TStringBuf("TzDatetime"), TOKEN_TZDATETIME},
         {TStringBuf("TzTimestamp"), TOKEN_TZTIMESTAMP},
         {TStringBuf("Uuid"), TOKEN_UUID},
+        {TStringBuf("Rowid"), TOKEN_ROWID},
         {TStringBuf("Flow"), TOKEN_FLOW},
         {TStringBuf("Set"), TOKEN_SET},
         {TStringBuf("Enum"), TOKEN_ENUM},
@@ -235,6 +237,7 @@ private:
             case TOKEN_TZDATETIME:
             case TOKEN_TZTIMESTAMP:
             case TOKEN_UUID:
+            case TOKEN_ROWID:
             case TOKEN_JSON_DOCUMENT:
             case TOKEN_DYNUMBER:
             case TOKEN_DATE32:

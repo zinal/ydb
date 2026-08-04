@@ -56,6 +56,7 @@ static constexpr TTypeId Json = NYql::NProto::Json;
 
 static constexpr TTypeId Uuid = NYql::NProto::Uuid;
 static constexpr TTypeId JsonDocument = NYql::NProto::JsonDocument;
+static constexpr TTypeId Rowid = NYql::NProto::Rowid;
 
 static constexpr TTypeId DyNumber = NYql::NProto::DyNumber;
 
@@ -87,6 +88,7 @@ static constexpr TTypeId YqlIds[] = {
     JsonDocument,
     DyNumber,
     Uuid,
+    Rowid,
     Date32,
     Datetime64,
     Timestamp64,
@@ -148,6 +150,7 @@ const char *TypeName(TTypeId typeId) {
         case NTypeIds::JsonDocument:    return "JsonDocument";
         case NTypeIds::DyNumber:        return "DyNumber";
         case NTypeIds::Uuid:            return "Uuid";
+        case NTypeIds::Rowid:           return "Rowid";
         default:                        return "Unknown";
     }
 }

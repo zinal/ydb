@@ -12,6 +12,7 @@ PEERDIR(
     ydb/library/mkql_proto/protos
     ydb/public/lib/scheme_types
     ydb/public/sdk/cpp/src/client/value
+    yql/essentials/types/rowid
 )
 
 END()

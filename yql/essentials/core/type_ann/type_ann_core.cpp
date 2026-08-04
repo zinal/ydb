@@ -985,6 +985,13 @@ namespace NTypeAnnImpl {
 
                     return IGraphTransformer::TStatus::Error;
                 }
+            } else if (input->Content() == "Rowid") {
+                if (input->Head().Content().size() != NKikimr::NUdf::ROWID_SIZE) {
+                    ctx.Expr.AddError(TIssue(ctx.Expr.GetPosition(input->Pos()), TStringBuilder() << "Bad atom format for type: "
+                        << input->Content() << ", value: " << TString(input->Head().Content()).Quote()));
+
+                    return IGraphTransformer::TStatus::Error;
+                }
             } else if (input->Content() == "JsonDocument") {
                 // check will be performed in JsonDocument callable
             } else if (input->Content() == "DyNumber") {

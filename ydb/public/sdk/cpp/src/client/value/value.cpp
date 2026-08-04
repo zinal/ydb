@@ -15,6 +15,8 @@
 #include <ydb/public/sdk/cpp/src/library/decimal/yql_decimal.h>
 #include <ydb/public/sdk/cpp/src/library/uuid/uuid.h>
 
+#include <yql/essentials/types/rowid/rowid.h>
+
 #include <util/generic/mapfindptr.h>
 #include <util/generic/bitmap.h>
 #include <util/string/builder.h>
@@ -1040,6 +1042,30 @@ std::string TUuidValue::ToString() const {
     return s.Str();
 }
 
+TRowidValue::TRowidValue(const char* rowidBytes, size_t size) {
+    static_assert(Size == NKikimr::NRowid::ROWID_LEN);
+    if (size != Size) {
+        ThrowFatalError(TStringBuilder() << "Invalid Rowid bytes size: " << size);
+    }
+    std::memcpy(Bytes, rowidBytes, Size);
+}
+
+TRowidValue::TRowidValue(const Ydb::Value& valueProto)
+    : TRowidValue(valueProto.bytes_value().data(), valueProto.bytes_value().size())
+{}
+
+TRowidValue::TRowidValue(const std::string& rowidString) {
+    static_assert(Size == NKikimr::NRowid::ROWID_LEN);
+    if (!NKikimr::NRowid::ParseRowidBase64(rowidString, Bytes)) {
+        ThrowFatalError(TStringBuilder() << "Unable to parse string as rowid");
+    }
+}
+
+std::string TRowidValue::ToString() const {
+    static_assert(Size == NKikimr::NRowid::ROWID_LEN);
+    return NKikimr::NRowid::RowidBytesToBase64(TStringBuf(Bytes, Size));
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 class TValue::TImpl {
@@ -1288,6 +1314,11 @@ public:
     TUuidValue GetUuid() const {
         CheckPrimitive(NYdb::EPrimitiveType::Uuid);
         return TUuidValue(GetProto());
+    }
+
+    TRowidValue GetRowid() const {
+        CheckPrimitive(NYdb::EPrimitiveType::Rowid);
+        return TRowidValue(GetProto());
     }
 
     const std::string& GetJsonDocument() const {
@@ -1662,6 +1693,8 @@ private:
                 return Ydb::Value::kTextValue;
             case NYdb::EPrimitiveType::Uuid:
                 return Ydb::Value::kLow128;
+            case NYdb::EPrimitiveType::Rowid:
+                return Ydb::Value::kBytesValue;
             default:
                 FatalError(TStringBuilder() << "Unexpected primitive type: " << primitiveTypeId);
                 return Ydb::Value::kBytesValue;
@@ -1819,6 +1852,10 @@ TUuidValue TValueParser::GetUuid() const {
     return Impl_->GetUuid();
 }
 
+TRowidValue TValueParser::GetRowid() const {
+    return Impl_->GetRowid();
+}
+
 const std::string& TValueParser::GetJsonDocument() const {
     return Impl_->GetJsonDocument();
 }
@@ -1957,6 +1994,10 @@ std::optional<std::string> TValueParser::GetOptionalJson() const {
 
 std::optional<TUuidValue> TValueParser::GetOptionalUuid() const {
     RET_OPT_VALUE(TUuidValue, Uuid);
+}
+
+std::optional<TRowidValue> TValueParser::GetOptionalRowid() const {
+    RET_OPT_VALUE(TRowidValue, Rowid);
 }
 
 std::optional<std::string> TValueParser::GetOptionalJsonDocument() const {
@@ -2292,6 +2333,11 @@ public:
         FillPrimitiveType(EPrimitiveType::Uuid);
         GetValue().set_low_128(value.Buf_.Halfs[0]);
         GetValue().set_high_128(value.Buf_.Halfs[1]);
+    }
+
+    void Rowid(const TRowidValue& value) {
+        FillPrimitiveType(EPrimitiveType::Rowid);
+        GetValue().set_bytes_value(value.Bytes, TRowidValue::Size);
     }
 
     void JsonDocument(const std::string& value) {
@@ -3083,6 +3129,12 @@ TDerived& TValueBuilderBase<TDerived>::Uuid(const TUuidValue& value) {
 }
 
 template<typename TDerived>
+TDerived& TValueBuilderBase<TDerived>::Rowid(const TRowidValue& value) {
+    Impl_->Rowid(value);
+    return static_cast<TDerived&>(*this);
+}
+
+template<typename TDerived>
 TDerived& TValueBuilderBase<TDerived>::JsonDocument(const std::string& value) {
     Impl_->JsonDocument(value);
     return static_cast<TDerived&>(*this);
@@ -3265,6 +3317,11 @@ TDerived& TValueBuilderBase<TDerived>::OptionalJson(const std::optional<std::str
 template<typename TDerived>
 TDerived& TValueBuilderBase<TDerived>::OptionalUuid(const std::optional<TUuidValue>& value) {
     SET_OPT_VALUE_FROM_OPTIONAL(Uuid);
+}
+
+template<typename TDerived>
+TDerived& TValueBuilderBase<TDerived>::OptionalRowid(const std::optional<TRowidValue>& value) {
+    SET_OPT_VALUE_FROM_OPTIONAL(Rowid);
 }
 
 template<typename TDerived>
@@ -3494,5 +3551,10 @@ TValue TValueBuilder::Build() {
 
 template<>
 void Out<NYdb::TUuidValue>(IOutputStream& o, const NYdb::TUuidValue& value) {
+    o << value.ToString();
+}
+
+template<>
+void Out<NYdb::TRowidValue>(IOutputStream& o, const NYdb::TRowidValue& value) {
     o << value.ToString();
 }

@@ -186,6 +186,7 @@ public:
         }
         case NScheme::NTypeIds::DyNumber:        return "DyNumber";
         case NScheme::NTypeIds::Uuid:            return "Uuid";
+        case NScheme::NTypeIds::Rowid:           return "Rowid";
         default:
             return "-";
         }

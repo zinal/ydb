@@ -94,6 +94,9 @@ static void PrimitiveValueToYson(EPrimitiveType type, TValueParser& parser, NYso
         case EPrimitiveType::Uuid:
             writer.OnStringScalar(parser.GetUuid().ToString());
             break;
+        case EPrimitiveType::Rowid:
+            writer.OnStringScalar(parser.GetRowid().ToString());
+            break;
         case EPrimitiveType::DyNumber:
             writer.OnStringScalar(parser.GetDyNumber());
             break;
