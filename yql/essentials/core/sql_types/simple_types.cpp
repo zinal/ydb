@@ -53,6 +53,7 @@ const std::unordered_map<std::string_view, TSimpleType> SimpleTypes = {
     {"utf8", {"Utf8", "Utf8", "Data"}},
 
     {"uuid", {"Uuid", "Uuid", "Data"}},
+    {"rowid", {"Rowid", "Rowid", "Data"}},
     {"yson", {"Yson", "Yson", "Data"}},
     {"json", {"Json", "Json", "Data"}},
     {"jsondocument", {"JsonDocument", "JsonDocument", "Data"}},

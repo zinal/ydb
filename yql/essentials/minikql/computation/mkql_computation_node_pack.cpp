@@ -395,6 +395,9 @@ NUdf::TUnboxedValue UnpackFromChunkedBuffer(const TType* type, TChunkedInputBuff
                 case NUdf::EDataSlot::Uuid: {
                     return UnpackString(buf, 16);
                 }
+                case NUdf::EDataSlot::Rowid: {
+                    return UnpackString(buf, NUdf::ROWID_SIZE);
+                }
                 case NUdf::EDataSlot::Decimal: {
                     return NUdf::TUnboxedValuePod(UnpackDecimal(buf));
                 }
@@ -717,6 +720,11 @@ void PackImpl(const TType* type, TBuf& buffer, const NUdf::TUnboxedValuePod& val
                     PackData<Fast>(value.Get<i64>(), buffer);
                     break;
                 case NUdf::EDataSlot::Uuid: {
+                    auto ref = value.AsStringRef();
+                    PackBlob(ref.Data(), ref.Size(), buffer);
+                    break;
+                }
+                case NUdf::EDataSlot::Rowid: {
                     auto ref = value.AsStringRef();
                     PackBlob(ref.Data(), ref.Size(), buffer);
                     break;

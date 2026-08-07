@@ -198,6 +198,7 @@ void WriteValueToJson(TJsonWriter& writer, const NKikimr::NUdf::TUnboxedValuePod
                 case NUdf::TDataType<NUdf::TUuid>::Id:
                     writer.Write(value.AsStringRef());
                     break;
+                case NUdf::TDataType<NUdf::TRowid>::Id:
                 case NUdf::TDataType<NUdf::TYson>::Id:
                 case NUdf::TDataType<NUdf::TDyNumber>::Id:
                 case NUdf::TDataType<NUdf::TDate>::Id:

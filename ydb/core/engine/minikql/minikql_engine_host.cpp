@@ -1086,6 +1086,7 @@ NUdf::TUnboxedValue GetCellValue(const TCell& cell, NScheme::TTypeInfo type) {
         case NYql::NProto::TypeIds::Yson:
         case NYql::NProto::TypeIds::Json:
         case NYql::NProto::TypeIds::Uuid:
+        case NYql::NProto::TypeIds::Rowid:
         case NYql::NProto::TypeIds::JsonDocument:
         case NYql::NProto::TypeIds::DyNumber:
             return MakeString(NUdf::TStringRef(cell.Data(), cell.Size()));

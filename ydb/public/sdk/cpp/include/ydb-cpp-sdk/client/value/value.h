@@ -8,6 +8,7 @@
 
 #include <optional>
 #include <memory>
+#include <cstddef>
 
 namespace Ydb {
     class Type;
@@ -75,6 +76,7 @@ enum class EPrimitiveType {
     Json         = 0x1202,
     Uuid         = 0x1203,
     JsonDocument = 0x1204,
+    Rowid        = 0x1205,
     DyNumber     = 0x1302,
 };
 
@@ -274,6 +276,17 @@ struct TUuidValue {
     } Buf_;
 };
 
+struct TRowidValue {
+    static constexpr size_t Size = 14;
+
+    std::string ToString() const;
+    TRowidValue(const char* rowidBytes, size_t size);
+    TRowidValue(const Ydb::Value& rowidValueProto);
+    TRowidValue(const std::string& rowidString);
+
+    char Bytes[Size];
+};
+
 //! Representation of YDB value.
 class TValue {
     friend class TValueParser;
@@ -348,6 +361,7 @@ public:
     TDecimalValue GetDecimal() const;
     TPgValue GetPg() const;
     TUuidValue GetUuid() const;
+    TRowidValue GetRowid() const;
     const std::string& GetJsonDocument() const;
     const std::string& GetDyNumber() const;
 
@@ -381,6 +395,7 @@ public:
     std::optional<std::string> GetOptionalJson() const;
     std::optional<TDecimalValue> GetOptionalDecimal() const;
     std::optional<TUuidValue> GetOptionalUuid() const;
+    std::optional<TRowidValue> GetOptionalRowid() const;
     std::optional<std::string> GetOptionalJsonDocument() const;
     std::optional<std::string> GetOptionalDyNumber() const;
 
@@ -463,6 +478,7 @@ public:
     TDerived& Decimal(const TDecimalValue& value);
     TDerived& Pg(const TPgValue& value);
     TDerived& Uuid(const TUuidValue& value);
+    TDerived& Rowid(const TRowidValue& value);
     TDerived& JsonDocument(const std::string& value);
     TDerived& DyNumber(const std::string& value);
     TDerived& Date32(const std::chrono::sys_time<TWideDays>& value);
@@ -495,6 +511,7 @@ public:
     TDerived& OptionalYson(const std::optional<std::string>& value);
     TDerived& OptionalJson(const std::optional<std::string>& value);
     TDerived& OptionalUuid(const std::optional<TUuidValue>& value);
+    TDerived& OptionalRowid(const std::optional<TRowidValue>& value);
     TDerived& OptionalJsonDocument(const std::optional<std::string>& value);
     TDerived& OptionalDyNumber(const std::optional<std::string>& value);
     TDerived& OptionalDate32(const std::optional<std::chrono::sys_time<TWideDays>>& value);
@@ -578,3 +595,6 @@ public:
 
 template<>
 void Out<NYdb::TUuidValue>(IOutputStream& o, const NYdb::TUuidValue& value);
+
+template<>
+void Out<NYdb::TRowidValue>(IOutputStream& o, const NYdb::TRowidValue& value);

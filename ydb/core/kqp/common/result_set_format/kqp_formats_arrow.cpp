@@ -23,7 +23,9 @@ std::shared_ptr<arrow::DataType> BuildArrowType(NUdf::EDataSlot slot) {
 
 template <>
 std::shared_ptr<arrow::DataType> BuildArrowType<arrow::FixedSizeBinaryType>(NUdf::EDataSlot slot) {
-    Y_UNUSED(slot);
+    if (slot == NUdf::EDataSlot::Rowid) {
+        return arrow::fixed_size_binary(NUdf::ROWID_SIZE);
+    }
     return arrow::fixed_size_binary(NScheme::FSB_SIZE);
 }
 
@@ -371,6 +373,12 @@ void AppendDataValue<arrow::FixedSizeBinaryType>(arrow::ArrayBuilder* builder, N
 
     switch (dataSlot) {
         case NUdf::EDataSlot::Uuid: {
+            auto data = value.AsStringRef();
+            status = typedBuilder->Append(data.Data());
+            break;
+        }
+
+        case NUdf::EDataSlot::Rowid: {
             auto data = value.AsStringRef();
             status = typedBuilder->Append(data.Data());
             break;

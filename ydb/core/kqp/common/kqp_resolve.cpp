@@ -68,6 +68,10 @@ NUdf::TUnboxedValue MakeDefaultValueByType(NKikimr::NMiniKQL::TType* type) {
             buf.half[1] = 0;
             return NKikimr::NMiniKQL::MakeString(NUdf::TStringRef(buf.bytes, 16));
         }
+        case NUdf::TDataType<NUdf::TRowid>::Id: {
+            char bytes[NUdf::ROWID_SIZE] = {};
+            return NKikimr::NMiniKQL::MakeString(NUdf::TStringRef(bytes, sizeof(bytes)));
+        }
         default:
             return NKikimr::NMiniKQL::MakeString("");
     }

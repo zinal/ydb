@@ -315,6 +315,11 @@ private:
                 Result_ = Ctx_.Builder(Pos_).Callable("Uuid").Atom(0, TStringBuf(UUID_VALID_LITERAL, sizeof(UUID_VALID_LITERAL) - 1)).Seal().Build();
                 break;
             }
+            case NUdf::EDataSlot::Rowid: {
+                constexpr char ROWID_VALID_LITERAL[] = "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00";
+                Result_ = Ctx_.Builder(Pos_).Callable("Rowid").Atom(0, TStringBuf(ROWID_VALID_LITERAL, sizeof(ROWID_VALID_LITERAL) - 1)).Seal().Build();
+                break;
+            }
             case NUdf::EDataSlot::Date:
                 Result_ = Ctx_.Builder(Pos_).Callable("Date").Atom(0, "0").Seal().Build();
                 break;

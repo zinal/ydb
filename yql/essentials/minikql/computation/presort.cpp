@@ -18,39 +18,60 @@ namespace NKikimr::NMiniKQL {
 namespace NDetail {
 
 constexpr size_t UuidSize = 16;
+constexpr size_t RowidSize = NYql::NUdf::ROWID_SIZE;
 
-template <bool Desc>
-Y_FORCE_INLINE void EncodeUuid(TVector<ui8>& output, const char* data) {
-    output.resize(output.size() + UuidSize);
-    auto ptr = output.end() - UuidSize;
+template <bool Desc, size_t Size>
+Y_FORCE_INLINE void EncodeFixedBytes(TVector<ui8>& output, const char* data) {
+    output.resize(output.size() + Size);
+    auto ptr = output.end() - Size;
 
     if (Desc) {
-        for (size_t i = 0; i < UuidSize; ++i) {
+        for (size_t i = 0; i < Size; ++i) {
             *ptr++ = ui8(*data++) ^ 0xFF;
         }
     } else {
-        std::memcpy(ptr, data, UuidSize);
+        std::memcpy(ptr, data, Size);
     }
 }
 
 template <bool Desc>
-Y_FORCE_INLINE TStringBuf DecodeUuid(TStringBuf& input, TVector<ui8>& value) {
-    EnsureInputSize(input, UuidSize);
-    auto data = input.data();
-    input.Skip(UuidSize);
+Y_FORCE_INLINE void EncodeUuid(TVector<ui8>& output, const char* data) {
+    EncodeFixedBytes<Desc, UuidSize>(output, data);
+}
 
-    value.resize(UuidSize);
+template <bool Desc>
+Y_FORCE_INLINE void EncodeRowid(TVector<ui8>& output, const char* data) {
+    EncodeFixedBytes<Desc, RowidSize>(output, data);
+}
+
+template <bool Desc, size_t Size>
+Y_FORCE_INLINE TStringBuf DecodeFixedBytes(TStringBuf& input, TVector<ui8>& value) {
+    EnsureInputSize(input, Size);
+    auto data = input.data();
+    input.Skip(Size);
+
+    value.resize(Size);
     auto ptr = value.begin();
 
     if (Desc) {
-        for (size_t i = 0; i < UuidSize; ++i) {
+        for (size_t i = 0; i < Size; ++i) {
             *ptr++ = ui8(*data++) ^ 0xFF;
         }
     } else {
-        std::memcpy(ptr, data, UuidSize);
+        std::memcpy(ptr, data, Size);
     }
 
     return TStringBuf((const char*)value.begin(), (const char*)value.end());
+}
+
+template <bool Desc>
+Y_FORCE_INLINE TStringBuf DecodeUuid(TStringBuf& input, TVector<ui8>& value) {
+    return DecodeFixedBytes<Desc, UuidSize>(input, value);
+}
+
+template <bool Desc>
+Y_FORCE_INLINE TStringBuf DecodeRowid(TStringBuf& input, TVector<ui8>& value) {
+    return DecodeFixedBytes<Desc, RowidSize>(input, value);
 }
 
 template <typename TUnsigned, bool Desc>
@@ -172,6 +193,9 @@ Y_FORCE_INLINE void Encode(TVector<ui8>& output, NUdf::EDataSlot slot, const NUd
         case NUdf::EDataSlot::Uuid:
             EncodeUuid<Desc>(output, value.AsStringRef().Data());
             break;
+        case NUdf::EDataSlot::Rowid:
+            EncodeRowid<Desc>(output, value.AsStringRef().Data());
+            break;
         case NUdf::EDataSlot::TzDate:
             EncodeTzUnsigned<ui16, Desc>(output, value.Get<ui16>(), value.GetTimezoneId());
             break;
@@ -253,6 +277,10 @@ Y_FORCE_INLINE NUdf::TUnboxedValue Decode(TStringBuf& input, NUdf::EDataSlot slo
         case NUdf::EDataSlot::Uuid:
             buffer.clear();
             return MakeString(NUdf::TStringRef(DecodeUuid<Desc>(input, buffer)));
+
+        case NUdf::EDataSlot::Rowid:
+            buffer.clear();
+            return MakeString(NUdf::TStringRef(DecodeRowid<Desc>(input, buffer)));
 
         case NUdf::EDataSlot::TzDate: {
             ui16 date;

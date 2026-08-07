@@ -251,6 +251,7 @@ namespace NYql {
                 case EDataSlot::Json:
                 case EDataSlot::Decimal:
                 case EDataSlot::Uuid:
+                case EDataSlot::Rowid:
                 case EDataSlot::TzDate:
                 case EDataSlot::TzDatetime:
                 case EDataSlot::TzTimestamp:

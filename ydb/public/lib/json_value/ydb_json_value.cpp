@@ -366,6 +366,9 @@ namespace NYdb {
             case EPrimitiveType::Uuid:
                 Writer.WriteString(Parser.GetUuid().ToString());
                 break;
+            case EPrimitiveType::Rowid:
+                Writer.WriteString(Parser.GetRowid().ToString());
+                break;
             case EPrimitiveType::JsonDocument:
                 Writer.WriteString(Parser.GetJsonDocument());
                 break;
@@ -790,6 +793,10 @@ namespace {
             case EPrimitiveType::Uuid:
                 EnsureType(jsonValue, NJson::JSON_STRING);
                 ValueBuilder.Uuid(TUuidValue{jsonValue.GetString()});
+                break;
+            case EPrimitiveType::Rowid:
+                EnsureType(jsonValue, NJson::JSON_STRING);
+                ValueBuilder.Rowid(TRowidValue{jsonValue.GetString()});
                 break;
             case EPrimitiveType::JsonDocument:
                 EnsureType(jsonValue, NJson::JSON_STRING);

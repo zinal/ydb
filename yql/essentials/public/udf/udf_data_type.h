@@ -141,6 +141,7 @@ class TYson {};
 class TJson {};
 class TUuid {};
 class TJsonDocument {};
+class TRowid {};
 
 class TDate {};
 class TDatetime {};
@@ -175,6 +176,7 @@ constexpr i64 MAX_INTERVAL64 = MAX_TIMESTAMP64 - MIN_TIMESTAMP64;
 constexpr i32 MIN_YEAR32 = -144169; // inclusive
 constexpr i32 MAX_YEAR32 = 148108;  // non-inclusive
 constexpr size_t UUID_SIZE = 16;
+constexpr size_t ROWID_SIZE = 14;
 
 #define UDF_TYPE_ID_MAP(XX)                                                                                         \
     XX(Bool, NYql::NProto::Bool, bool, CommonType, bool, 0)                                                         \
@@ -209,7 +211,8 @@ constexpr size_t UUID_SIZE = 16;
     XX(Interval64, NYql::NProto::Interval64, TInterval64, CommonType | TimeIntervalType | ExtDateType, i64, 0)      \
     XX(TzDate32, NYql::NProto::TzDate32, TTzDate32, CommonType | TzDateType | ExtDateType, i32, 0)                  \
     XX(TzDatetime64, NYql::NProto::TzDatetime64, TTzDatetime64, CommonType | TzDateType | ExtDateType, i64, 0)      \
-    XX(TzTimestamp64, NYql::NProto::TzTimestamp64, TTzTimestamp64, CommonType | TzDateType | ExtDateType, i64, 0)
+    XX(TzTimestamp64, NYql::NProto::TzTimestamp64, TTzTimestamp64, CommonType | TzDateType | ExtDateType, i64, 0)  \
+    XX(Rowid, NYql::NProto::Rowid, TRowid, CommonType, TRowid, 0)
 
 #define UDF_TYPE_ID(xName, xTypeId, xType, xFeatures, xLayoutType, xParamsCount)                 \
     template <>                                                                                  \

@@ -7,6 +7,7 @@
 #include <yql/essentials/minikql/computation/mkql_computation_node_holders.h>
 #include <yql/essentials/public/decimal/yql_decimal.h>
 #include <yql/essentials/parser/pg_wrapper/interface/type_desc.h>
+#include <yql/essentials/types/rowid/rowid.h>
 
 #include <ydb/core/scheme_types/scheme_types_defs.h>
 
@@ -223,6 +224,15 @@ bool CellsFromTuple(const NKikimrMiniKQL::TType* tupleType,
             }
             break;
         }
+        case NScheme::NTypeIds::Rowid:
+        {
+            if (!v.HasBytes()) {
+                CHECK_OR_RETURN_ERROR(false, Sprintf("Cannot parse value of type Rowid in tuple at position %" PRIu32, i));
+            }
+            CHECK_OR_RETURN_ERROR(v.GetBytes().size() == NRowid::ROWID_LEN, Sprintf("Invalid Rowid size in tuple at position %" PRIu32, i));
+            c = TCell(v.GetBytes().data(), v.GetBytes().size());
+            break;
+        }
         case NScheme::NTypeIds::Decimal:
         {
             if (v.HasLow128() && v.HasHi128()) {
@@ -365,6 +375,11 @@ bool CellToValue(NScheme::TTypeInfo type, const TCell& c, NKikimrMiniKQL::TValue
         val.MutableOptional()->SetLow128(low);
         break;
     }
+
+    case NScheme::NTypeIds::Rowid:
+        Y_ABORT_UNLESS(c.Size() == NRowid::ROWID_LEN);
+        val.MutableOptional()->SetBytes(c.Data(), c.Size());
+        break;
 
     default:
         errStr = "Unknown type: " + ToString(typeId);

@@ -90,6 +90,7 @@ void WriteYsonValueImpl(NResult::TYsonResultWriter& writer, const NUdf::TUnboxed
 
                 case NUdf::EDataSlot::String:
                 case NUdf::EDataSlot::Uuid:
+                case NUdf::EDataSlot::Rowid:
                     writer.OnStringScalar(value.AsStringRef());
                     return;
 
@@ -332,6 +333,7 @@ NYT::TNode DataValueToNode(const NKikimr::NUdf::TUnboxedValuePod& value, NKikimr
         case NUdf::TDataType<NUdf::TUtf8>::Id:
         case NUdf::TDataType<NUdf::TJson>::Id:
         case NUdf::TDataType<NUdf::TUuid>::Id:
+        case NUdf::TDataType<NUdf::TRowid>::Id:
             return NYT::TNode(TString(value.AsStringRef()));
         case NUdf::TDataType<NUdf::TYson>::Id:
             return NYT::NodeFromYsonString(value.AsStringRef());
@@ -472,6 +474,7 @@ TString DataValueToString(const NKikimr::NUdf::TUnboxedValuePod& value, const TD
         case NUdf::EDataSlot::Utf8:
         case NUdf::EDataSlot::Json:
         case NUdf::EDataSlot::Uuid:
+        case NUdf::EDataSlot::Rowid:
         case NUdf::EDataSlot::Yson:
             return ToString((TStringBuf)value.AsStringRef());
         case NUdf::EDataSlot::Decimal: {
@@ -871,7 +874,8 @@ NUdf::TUnboxedValue ReadYsonValue(TType* type,
                 case NUdf::TDataType<NUdf::TUtf8>::Id:
                 case NUdf::TDataType<char*>::Id:
                 case NUdf::TDataType<NUdf::TJson>::Id:
-                case NUdf::TDataType<NUdf::TUuid>::Id: {
+                case NUdf::TDataType<NUdf::TUuid>::Id:
+                case NUdf::TDataType<NUdf::TRowid>::Id: {
                     return ReadYsonStringInResultFormat(cmd, buf);
                 }
 

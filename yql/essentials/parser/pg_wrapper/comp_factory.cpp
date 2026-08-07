@@ -3877,6 +3877,8 @@ ui32 ConvertToPgType(NUdf::EDataSlot slot) {
         return JSONOID;
     case NUdf::EDataSlot::Uuid:
         return UUIDOID;
+    case NUdf::EDataSlot::Rowid:
+        return BYTEAOID;
     case NUdf::EDataSlot::Date:
         return DATEOID;
     case NUdf::EDataSlot::Datetime:

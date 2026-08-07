@@ -1466,4 +1466,24 @@ TEST(YdbValue, IncorrectUuid) {
     ASSERT_THROW(TUuidValue("5ca32-c22841b-11e8-adc0-fa7ae01bbebc"), TContractViolation);
 }
 
+TEST(YdbValue, CorrectRowid) {
+    std::string rowidStr = "YWJjZGVmZ2hpamtsbW4";
+    TRowidValue rowid(rowidStr);
+    ASSERT_EQ(rowidStr, rowid.ToString());
+
+    auto value = TValueBuilder().Rowid(rowid).Build();
+    CheckProtoValue(value.GetProto(), "bytes_value: \"abcdefghijklmn\"\n");
+
+    TValueParser parser(value);
+    ASSERT_EQ(EPrimitiveType::Rowid, parser.GetPrimitiveType());
+    ASSERT_EQ(rowidStr, parser.GetRowid().ToString());
+}
+
+TEST(YdbValue, IncorrectRowid) {
+    ASSERT_THROW(TRowidValue(""), TContractViolation);
+    ASSERT_THROW(TRowidValue("YWJjZGVmZ2hpamtsbW4="), TContractViolation);
+    ASSERT_THROW(TRowidValue("YWJjZGVmZ2hpamtsbW*"), TContractViolation);
+    ASSERT_THROW(TRowidValue("abcdefghijklmn", 13), TContractViolation);
+}
+
 } // namespace NYdb

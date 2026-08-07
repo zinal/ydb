@@ -235,6 +235,12 @@ void TCreateTableFormatter::FormatPrimitive(NYdb::TValueParser& parser) {
             Stream << ")";
             break;
         }
+        case NYdb::EPrimitiveType::Rowid: {
+            Stream << "ROWID(";
+            EscapeString(TString(parser.GetRowid().ToString()), Stream);
+            Stream << ")";
+            break;
+        }
         default:
             ythrow TFormatFail(Ydb::StatusIds::UNSUPPORTED, "Unsupported primitive type for SHOW CREATE TABLE");
     }
