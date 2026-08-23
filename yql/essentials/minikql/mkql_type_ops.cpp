@@ -11,6 +11,7 @@
 #include <yql/essentials/types/binary_json/write.h>
 #include <yql/essentials/types/binary_json/read.h>
 #include <yql/essentials/types/uuid/uuid.h>
+#include <yql/essentials/types/rowid/rowid.h>
 #include <yql/essentials/types/dynumber/dynumber.h>
 
 #include <library/cpp/containers/stack_vector/stack_vec.h>
@@ -175,6 +176,8 @@ bool IsValidValue(NUdf::EDataSlot type, const NUdf::TUnboxedValuePod& value) {
             return bool(value) && NDom::IsValidJson(value.AsStringRef());
         case NUdf::EDataSlot::Uuid:
             return bool(value) && value.AsStringRef().Size() == 16;
+        case NUdf::EDataSlot::Rowid:
+            return bool(value) && value.AsStringRef().Size() == NUdf::ROWID_SIZE;
         case NUdf::EDataSlot::DyNumber:
             return NDyNumber::IsValidDyNumber(value.AsStringRef());
         case NUdf::EDataSlot::JsonDocument:
@@ -534,6 +537,11 @@ NUdf::TUnboxedValuePod ValueToString(NUdf::EDataSlot type, NUdf::TUnboxedValuePo
             std::array<ui16, 8> dw;
             std::memcpy(dw.data(), value.AsStringRef().Data(), sizeof(dw));
             NUuid::UuidToString(dw.data(), out);
+            break;
+        }
+
+        case NUdf::EDataSlot::Rowid: {
+            NRowid::RowidBytesToBase64(value.AsStringRef(), out);
             break;
         }
 
@@ -1534,6 +1542,14 @@ NUdf::TUnboxedValuePod ParseUuid(NUdf::TStringRef buf, bool shortForm) {
     return MakeString(NUdf::TStringRef(reinterpret_cast<char*>(dw.data()), sizeof(dw)));
 }
 
+NUdf::TUnboxedValuePod ParseRowid(NUdf::TStringRef buf) {
+    std::array<char, NRowid::ROWID_LEN> bytes;
+    if (!NRowid::ParseRowidBase64(buf, bytes.data())) {
+        return NUdf::TUnboxedValuePod();
+    }
+    return MakeString(NUdf::TStringRef(bytes.data(), bytes.size()));
+}
+
 bool ParseUuid(NUdf::TStringRef buf, void* out, bool shortForm) {
     std::array<ui16, 8> dw;
 
@@ -2490,6 +2506,9 @@ bool IsValidStringValue(NUdf::EDataSlot type, NUdf::TStringRef buf) {
         case NUdf::EDataSlot::Uuid:
             return NUuid::IsValidUuid(buf);
 
+        case NUdf::EDataSlot::Rowid:
+            return NRowid::IsValidRowidBase64(buf);
+
         case NUdf::EDataSlot::DyNumber:
             return NDyNumber::IsValidDyNumberString(buf);
 
@@ -2607,6 +2626,9 @@ NUdf::TUnboxedValuePod ValueFromString(NUdf::EDataSlot type, NUdf::TStringRef bu
 
         case NUdf::EDataSlot::Uuid:
             return ParseUuid(buf);
+
+        case NUdf::EDataSlot::Rowid:
+            return ParseRowid(buf);
 
         case NUdf::EDataSlot::Date:
             return ParseDate(buf);
@@ -2740,6 +2762,7 @@ NUdf::TUnboxedValuePod SimpleValueFromYson(NUdf::EDataSlot type, NUdf::TStringRe
             case NUdf::EDataSlot::TzTimestamp:
             case NUdf::EDataSlot::Decimal:
             case NUdf::EDataSlot::Uuid:
+            case NUdf::EDataSlot::Rowid:
                 Y_ABORT("TODO");
 
             default:;
@@ -2855,6 +2878,7 @@ NUdf::TUnboxedValuePod SimpleValueFromYson(NUdf::EDataSlot type, NUdf::TStringRe
         case NUdf::EDataSlot::TzTimestamp64:
         case NUdf::EDataSlot::Decimal:
         case NUdf::EDataSlot::Uuid:
+        case NUdf::EDataSlot::Rowid:
         case NUdf::EDataSlot::DyNumber:
         case NUdf::EDataSlot::JsonDocument:
             Y_ABORT("TODO");

@@ -41,6 +41,7 @@ namespace NNames {
 
     DECLARE_TYPED_TYPE_NAME(DyNumber);
     DECLARE_TYPED_TYPE_NAME(Uuid);
+    DECLARE_TYPED_TYPE_NAME(Rowid);
 }
 
 void WriteEscapedValue(IOutputStream &out, const char *data, size_t size) {

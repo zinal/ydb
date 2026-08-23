@@ -42,6 +42,7 @@ TTypeRegistry::TTypeRegistry()
     RegisterType<TInterval>();
     RegisterType<TDyNumber>();
     RegisterType<TUuid>();
+    RegisterType<TRowid>();
     RegisterType<TDate32>();
     RegisterType<TDatetime64>();
     RegisterType<TTimestamp64>();

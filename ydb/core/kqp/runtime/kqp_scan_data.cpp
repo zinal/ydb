@@ -72,6 +72,12 @@ TBytesStatistics GetUnboxedValueSize(const NUdf::TUnboxedValue& value, const NSc
             Y_VERIFY_DEBUG_S(size == sizeof(TGUID), "Wrong Uuid size: " << size);
             return { sizeof(NUdf::TUnboxedValue) + size, size };
         }
+        case NTypeIds::Rowid:
+        {
+            const auto size = value.AsStringRef().Size();
+            Y_VERIFY_DEBUG_S(size == NUdf::ROWID_SIZE, "Wrong Rowid size: " << size);
+            return { sizeof(NUdf::TUnboxedValue) + size, size };
+        }
         case NTypeIds::String:
         case NTypeIds::Utf8:
         case NTypeIds::Json:

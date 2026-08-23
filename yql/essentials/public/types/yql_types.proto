@@ -21,6 +21,7 @@ enum TypeIds {
     Json = 0x1202;
     Uuid = 0x1203;
     JsonDocument = 0x1204;
+    Rowid = 0x1205;
     Date = 0x0030;
     Datetime = 0x0031;
     Timestamp = 0x0032;

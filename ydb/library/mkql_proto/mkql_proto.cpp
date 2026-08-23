@@ -13,6 +13,7 @@
 #include <yql/essentials/utils/utf8.h>
 #include <yql/essentials/types/binary_json/write.h>
 #include <yql/essentials/types/dynumber/dynumber.h>
+#include <yql/essentials/types/rowid/rowid.h>
 #include <yql/essentials/minikql/dom/yson.h>
 #include <library/cpp/containers/stack_vector/stack_vec.h>
 
@@ -140,6 +141,11 @@ Y_FORCE_INLINE void HandleKindDataExport(const TType* type, const NUdf::TUnboxed
         case NUdf::TDataType<NUdf::TUuid>::Id: {
             const auto& stringRef = value.AsStringRef();
             UuidToYdbProto(stringRef.Data(), stringRef.Size(), res);
+            break;
+        }
+        case NUdf::TDataType<NUdf::TRowid>::Id: {
+            const auto& stringRef = value.AsStringRef();
+            res.set_bytes_value(stringRef.Data(), stringRef.Size());
             break;
         }
         case NUdf::TDataType<NUdf::TJsonDocument>::Id: {
@@ -510,6 +516,11 @@ Y_FORCE_INLINE void HandleKindDataExport(const TType* type, const NUdf::TUnboxed
             UuidToMkqlProto(stringRef.Data(), stringRef.Size(), res);
             break;
         }
+        case NUdf::TDataType<NUdf::TRowid>::Id: {
+            auto stringRef = value.AsStringRef();
+            res.SetBytes(stringRef.Data(), stringRef.Size());
+            break;
+        }
         case NUdf::TDataType<NUdf::TJsonDocument>::Id: {
             auto stringRef = value.AsStringRef();
             res.SetBytes(stringRef.Data(), stringRef.Size());
@@ -843,6 +854,10 @@ Y_FORCE_INLINE NUdf::TUnboxedValue HandleKindDataImport(const TType* type, const
             buf.half[1] = value.GetHi128();
             return MakeString(NUdf::TStringRef(buf.bytes, 16));
         }
+        case NUdf::TDataType<NUdf::TRowid>::Id:
+            MKQL_ENSURE_S(oneOfCase == NKikimrMiniKQL::TValue::ValueValueCase::kBytes);
+            MKQL_ENSURE_S(value.GetBytes().size() == NRowid::ROWID_LEN);
+            return MakeString(value.GetBytes());
         default:
             MKQL_ENSURE_S(oneOfCase == NKikimrMiniKQL::TValue::ValueValueCase::kBytes,
                 "got: " << (int) oneOfCase << ", type: " << (int) dataType->GetSchemeType());
@@ -877,6 +892,7 @@ void ExportPrimitiveTypeToProto(ui32 schemeType, Ydb::Type& output) {
         case NYql::NProto::TypeIds::Yson:
         case NYql::NProto::TypeIds::Json:
         case NYql::NProto::TypeIds::Uuid:
+        case NYql::NProto::TypeIds::Rowid:
         case NYql::NProto::TypeIds::JsonDocument:
         case NYql::NProto::TypeIds::DyNumber:
         case NYql::NProto::TypeIds::Date32:
@@ -1282,6 +1298,10 @@ TNode* TProtoImporter::ImportNodeFromProto(TType* type, const NKikimrMiniKQL::TV
                     dataNode = TDataLiteral::Create(env.NewStringValue(NUdf::TStringRef(buf.bytes, 16)), dataType, env);
                     break;
                 }
+                case NUdf::TDataType<NUdf::TRowid>::Id:
+                    MKQL_ENSURE(value.GetBytes().size() == NRowid::ROWID_LEN, "Invalid Rowid size");
+                    dataNode = TDataLiteral::Create(env.NewStringValue(NUdf::TStringRef(value.GetBytes().data(), value.GetBytes().size())), dataType, env);
+                    break;
                 default:
                     MKQL_ENSURE(false, TStringBuilder() << "Unknown data type: " << schemeType);
             }
@@ -1642,6 +1662,14 @@ Y_FORCE_INLINE NUdf::TUnboxedValue KindDataImport(const TType* type, const Ydb::
             buf.half[0] = value.low_128();
             buf.half[1] = value.high_128();
             return MakeString(NUdf::TStringRef(buf.bytes, 16));
+        }
+        case NUdf::TDataType<NUdf::TRowid>::Id: {
+            CheckTypeId(value.value_case(), Ydb::Value::kBytesValue, "Rowid");
+            const auto& stringRef = value.bytes_value();
+            if (stringRef.size() != NRowid::ROWID_LEN) {
+                throw yexception() << "Invalid Rowid value";
+            }
+            return MakeString(TStringBuf(stringRef.data(), stringRef.size()));
         }
         case NUdf::TDataType<NUdf::TJsonDocument>::Id: {
             CheckTypeId(value.value_case(), Ydb::Value::kTextValue, "JsonDocument");

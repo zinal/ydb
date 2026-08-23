@@ -220,6 +220,8 @@ std::optional<ui64> EstimateIntegralDataSize(const TDataType* dataType) {
         case NUdf::EDataSlot::Uuid:
         case NUdf::EDataSlot::Decimal:
             return 16;
+        case NUdf::EDataSlot::Rowid:
+            return NUdf::ROWID_SIZE;
         case NUdf::EDataSlot::String:
         case NUdf::EDataSlot::Utf8:
         case NUdf::EDataSlot::DyNumber:

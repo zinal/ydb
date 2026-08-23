@@ -829,6 +829,8 @@ private:
                 return valueParser.GetDyNumber();
             case NYdb::EPrimitiveType::Uuid:
                 return valueParser.GetUuid().ToString();
+            case NYdb::EPrimitiveType::Rowid:
+                return valueParser.GetRowid().ToString();
         }
         return NJson::JSON_UNDEFINED;
     }

@@ -12,6 +12,7 @@
 #include <yql/essentials/types/binary_json/read.h>
 #include <yql/essentials/types/binary_json/write.h>
 #include <yql/essentials/types/dynumber/dynumber.h>
+#include <yql/essentials/types/rowid/rowid.h>
 
 #include <yql/essentials/minikql/dom/json.h>
 #include <yql/essentials/minikql/dom/yson.h>
@@ -359,6 +360,11 @@ Y_FORCE_INLINE void ConvertData(NUdf::TDataTypeId typeId, const NKikimrMiniKQL::
             res.set_high_128(value.GetHi128());
             break;
         }
+        case NUdf::TDataType<NUdf::TRowid>::Id: {
+            const auto& stringRef = value.GetBytes();
+            res.set_bytes_value(stringRef.data(), stringRef.size());
+            break;
+        }
         case NUdf::TDataType<NUdf::TJsonDocument>::Id: {
             const auto json = NBinaryJson::SerializeToJson(value.GetBytes());
             res.set_text_value(json);
@@ -525,6 +531,15 @@ Y_FORCE_INLINE void ConvertData(NUdf::TDataTypeId typeId, const Ydb::Value& valu
             res.SetLow128(value.low_128());
             res.SetHi128(value.high_128());
             break;
+        case NUdf::TDataType<NUdf::TRowid>::Id: {
+            CheckTypeId(value.value_case(), Ydb::Value::kBytesValue, "Rowid");
+            const auto& stringRef = value.bytes_value();
+            if (!NRowid::IsValidRowidBytes(TStringBuf(stringRef.data(), stringRef.size()))) {
+                throw yexception() << "Invalid Rowid value";
+            }
+            res.SetBytes(stringRef.data(), stringRef.size());
+            break;
+        }
         case NUdf::TDataType<NUdf::TJsonDocument>::Id: {
             CheckTypeId(value.value_case(), Ydb::Value::kTextValue, "JsonDocument");
             const auto binaryJson = NBinaryJson::SerializeToBinaryJson(value.text_value());
@@ -1192,6 +1207,10 @@ bool CheckValueData(NScheme::TTypeInfo type, const TCell& cell, TString& err) {
         // Uuid value was verified at parsing time
         break;
 
+    case NScheme::NTypeIds::Rowid:
+        ok = NRowid::IsValidRowidBytes(cell.AsBuf());
+        break;
+
     case NScheme::NTypeIds::Pg:
         // no pg validation here
         break;
@@ -1329,6 +1348,20 @@ bool CellFromProtoVal(const NScheme::TTypeInfo& type, i32 typmod, const Ydb::Val
         valInPool.first = val.low_128();
         valInPool.second = val.high_128();
         c = TCell((const char*)&valInPool, sizeof(valInPool));
+        break;
+    }
+    case NScheme::NTypeIds::Rowid : {
+        if (!val.Hasbytes_value()) {
+            err = "Cannot parse value of type Rowid";
+            return false;
+        }
+        const auto& bytes = val.Getbytes_value();
+        if (!NRowid::IsValidRowidBytes(TStringBuf(bytes.data(), bytes.size()))) {
+            err = "Invalid Rowid value";
+            return false;
+        }
+        const auto bytesInPool = valueDataPool.AppendString(TStringBuf(bytes.data(), bytes.size()));
+        c = TCell(bytesInPool.data(), bytesInPool.size());
         break;
     }
     case NScheme::NTypeIds::Pg : {
@@ -1481,6 +1514,9 @@ void ProtoValueFromCell(NYdb::TValueBuilder& vb, const NScheme::TTypeInfo& typeI
         vb.Uuid(TUuidValue(lo, hi));
         break;
     }
+    case EPrimitiveType::Rowid:
+        vb.Rowid(TRowidValue(cell.AsBuf().data(), cell.AsBuf().size()));
+        break;
     case EPrimitiveType::JsonDocument:
         vb.JsonDocument(NBinaryJson::SerializeToJson(getString()));
         break;

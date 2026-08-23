@@ -815,6 +815,8 @@ double EstimateRowSize(const TStructExprType& rowType, const TString& format, co
                     break;
                 case EDataSlot::Uuid:
                     break;
+                case EDataSlot::Rowid:
+                    break;
                 case EDataSlot::Date:
                     result += decoded ? 2.0 : 1.51;
                     break;

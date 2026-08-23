@@ -92,6 +92,7 @@ bool SwitchMiniKQLDataTypeToArrowType(NUdf::EDataSlot type, TFunc&& callback) {
             return callback(TTypeWrapper<arrow::BinaryType>());
         case NUdf::EDataSlot::Decimal:
         case NUdf::EDataSlot::Uuid:
+        case NUdf::EDataSlot::Rowid:
             return callback(TTypeWrapper<arrow::FixedSizeBinaryType>());
         case NUdf::EDataSlot::TzDate:
         case NUdf::EDataSlot::TzDatetime:
@@ -220,7 +221,9 @@ std::shared_ptr<arrow::DataType> CreateEmptyArrowImpl(NUdf::EDataSlot slot) {
 
 template <>
 std::shared_ptr<arrow::DataType> CreateEmptyArrowImpl<arrow::FixedSizeBinaryType>(NUdf::EDataSlot slot) {
-    Y_UNUSED(slot);
+    if (slot == NUdf::EDataSlot::Rowid) {
+        return arrow::fixed_size_binary(NUdf::ROWID_SIZE);
+    }
     return arrow::fixed_size_binary(NScheme::FSB_SIZE);
 }
 
@@ -534,7 +537,7 @@ void AppendFixedSizeDataValue(arrow::ArrayBuilder* builder, NUdf::TUnboxedValue 
     if (!value.HasValue()) {
         status = typedBuilder->AppendNull();
     } else {
-        if (dataSlot == NUdf::EDataSlot::Uuid) {
+        if (dataSlot == NUdf::EDataSlot::Uuid || dataSlot == NUdf::EDataSlot::Rowid) {
             auto data = value.AsStringRef();
             status = typedBuilder->Append(data.Data());
         } else if (dataSlot == NUdf::EDataSlot::Decimal) {

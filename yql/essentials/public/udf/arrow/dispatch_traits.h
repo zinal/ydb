@@ -247,6 +247,9 @@ std::unique_ptr<typename TTraits::TResult> DispatchByArrowTraits(const ITypeInfo
                     Y_ENSURE(false, "Unsupported data slot");
                 }
             }
+            case NUdf::EDataSlot::Rowid:
+                // Stored as 14 raw bytes in MiniKQL; Arrow uses variable binary for now.
+                return MakeStringArrowTraitsImpl<TTraits, arrow::BinaryType, NUdf::EDataSlot::Rowid>(isOptional, type, std::forward<TArgs>(args)...);
             case NUdf::EDataSlot::DyNumber:
                 return MakeStringArrowTraitsImpl<TTraits, arrow::BinaryType, NUdf::EDataSlot::DyNumber>(isOptional, type, std::forward<TArgs>(args)...);
         }

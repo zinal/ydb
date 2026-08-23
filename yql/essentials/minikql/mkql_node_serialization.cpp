@@ -808,6 +808,11 @@ public:
                         Owner_.WriteMany(v.Data(), v.Size());
                         break;
                     }
+                    case NUdf::TDataType<NUdf::TRowid>::Id: {
+                        const auto v = value.AsStringRef();
+                        Owner_.WriteMany(v.Data(), v.Size());
+                        break;
+                    }
                     case NUdf::TDataType<NUdf::TDecimal>::Id:
                         Owner_.WriteMany(static_cast<const char*>(value.GetRawPtr()), sizeof(NYql::NDecimal::TInt128) - 1U);
                         break;
@@ -1834,6 +1839,11 @@ private:
             case NUdf::TDataType<NUdf::TUuid>::Id: {
                 const char* buffer = ReadMany(16);
                 value = Env_.NewStringValue(NUdf::TStringRef(buffer, 16));
+                break;
+            }
+            case NUdf::TDataType<NUdf::TRowid>::Id: {
+                const char* buffer = ReadMany(NUdf::ROWID_SIZE);
+                value = Env_.NewStringValue(NUdf::TStringRef(buffer, NUdf::ROWID_SIZE));
                 break;
             }
             case NUdf::TDataType<NUdf::TDecimal>::Id: {

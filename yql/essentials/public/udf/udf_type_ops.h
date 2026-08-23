@@ -133,6 +133,11 @@ inline THashType GetValueHash<EDataSlot::Uuid>(const TUnboxedValuePod& value) {
 }
 
 template <>
+inline THashType GetValueHash<EDataSlot::Rowid>(const TUnboxedValuePod& value) {
+    return GetStringHash(value);
+}
+
+template <>
 inline THashType GetValueHash<EDataSlot::Yson>(const TUnboxedValuePod&) {
     Y_ABORT("Yson isn't hashable.");
 }
@@ -360,6 +365,11 @@ inline int CompareValues<EDataSlot::Uuid>(const TUnboxedValuePod& lhs, const TUn
 }
 
 template <>
+inline int CompareValues<EDataSlot::Rowid>(const TUnboxedValuePod& lhs, const TUnboxedValuePod& rhs) {
+    return CompareStrings(lhs, rhs);
+}
+
+template <>
 inline int CompareValues<EDataSlot::Yson>(const TUnboxedValuePod&, const TUnboxedValuePod&) {
     Y_ABORT("Yson isn't comparable.");
 }
@@ -561,6 +571,11 @@ inline bool EquateValues<EDataSlot::Utf8>(const TUnboxedValuePod& lhs, const TUn
 
 template <>
 inline bool EquateValues<EDataSlot::Uuid>(const TUnboxedValuePod& lhs, const TUnboxedValuePod& rhs) {
+    return EquateStrings(lhs, rhs);
+}
+
+template <>
+inline bool EquateValues<EDataSlot::Rowid>(const TUnboxedValuePod& lhs, const TUnboxedValuePod& rhs) {
     return EquateStrings(lhs, rhs);
 }
 

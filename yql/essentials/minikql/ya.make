@@ -81,6 +81,7 @@ PEERDIR(
     yql/essentials/types/binary_json
     yql/essentials/types/dynumber
     yql/essentials/types/uuid
+    yql/essentials/types/rowid
     yql/essentials/utils
     yql/essentials/utils/meta
     yql/essentials/utils/memory_profiling

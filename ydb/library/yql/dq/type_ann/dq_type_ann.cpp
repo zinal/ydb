@@ -1685,6 +1685,7 @@ bool IsTypeSupportedInMergeCn(EDataSlot type) {
         case EDataSlot::String:
         case EDataSlot::Utf8:
         case EDataSlot::Uuid:
+        case EDataSlot::Rowid:
         case EDataSlot::Date:
         case EDataSlot::Datetime:
         case EDataSlot::Timestamp:

@@ -247,6 +247,7 @@ private:
                 break;
             }
             case NYql::NProto::Uuid:
+            case NYql::NProto::Rowid:
             case NYql::NProto::String:
             case NYql::NProto::Utf8: {
                 auto value = uv.AsStringRef();

@@ -95,6 +95,7 @@ message Type {
         JSON           = 0x1202;
         UUID           = 0x1203;
         JSON_DOCUMENT  = 0x1204;
+        ROWID          = 0x1205;
         DYNUMBER       = 0x1302;
     }
 
