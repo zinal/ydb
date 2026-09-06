@@ -21,6 +21,7 @@ ydb/core/kafka_proxy/ut TTopicOffsetsActor.ParsesConsumerOffsetsAndSkipsErrors
 ydb/core/kafka_proxy/ut TTopicOffsetsActor.RetriesOnDeliveryProblem
 ydb/core/kafka_proxy/ut TTopicOffsetsActor.RetriesOnEmptyStatusResponse
 ydb/core/kafka_proxy/ut/protocol KafkaProtocol.TopicsCompactionGapFromRetention
+ydb/core/kqp/ut/federated_query/datastreams KqpStreamingQueriesDdl.CreateAndAlterStreamingQuery
 ydb/core/kqp/ut/federated_query/datastreams unittest.[*/*] chunk
 ydb/core/kqp/ut/indexes/json KqpJsonIndexes.NoMultipleColumnsWithoutFeatureFlag
 ydb/core/kqp/ut/scheme KqpScheme.CreateDropTableMultipleTime
