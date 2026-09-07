@@ -41,7 +41,6 @@ ydb/library/wasm/unittests TWebAssemblyTest.PureVirtualFunctionCall
 ydb/services/udf_store/ut TWasmUdfThrowExceptionTest.ThrowExceptionBecomesQueryFailureReason
 ydb/services/udf_store/ut TWasmUdfThrowExceptionTest.ThrowExceptionWasmDwarfMapsToMainCpp
 ydb/tests/functional/audit test_canonical_records.py.test_dstool_evict_vdisk_grpc
-ydb/tests/functional/nbs py3test.sole chunk
 ydb/tests/functional/nbs test_nbs.py.TestNbs.test_nbs_500gb_disk_read_write
 ydb/tests/functional/tpc/large py3test.[test_tpcds.py] chunk
 ydb/tests/stress/kafka/tests test_kafka_streams.py.TestYdbTopicWorkload.test
