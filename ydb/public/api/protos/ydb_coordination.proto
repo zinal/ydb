@@ -494,3 +494,14 @@ message DescribeNodeResult {
     Ydb.Scheme.Entry self = 1;
     Config config = 2;
 }
+
+/**
+ * Lists semaphores stored in a coordination node (server-streaming RPC).
+ * With include_details = false only compact fields are filled (name, limit, ephemeral, count).
+ * With include_details = true the response matches DescribeSemaphore with owners and waiters included.
+ */
+message ListSemaphoresRequest {
+    string path = 1;
+    bool include_details = 2;
+    Ydb.Operations.OperationParams operation_params = 3;
+}

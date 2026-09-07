@@ -172,6 +172,7 @@ void CodeGenRequestConfigsInner(TCodeGenContext& context);
 std::vector<TString> GetRequestConfigsServices() {
     return {
         "CoordinationService_Session",
+        "CoordinationService_ListSemaphores",
         "ClickhouseInternal_Scan",
         "ClickhouseInternal_GetShardLocations",
         "ClickhouseInternal_DescribeTable",
