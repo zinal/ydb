@@ -71,6 +71,7 @@ enum ETxTypes {
     TXTYPE_SEMAPHORE_TIMEOUT = 15                         [(TxTypeOpts) = {Name: "TxSemaphoreTimeout"}];
     TXTYPE_SEMAPHORE_UPDATE = 16                          [(TxTypeOpts) = {Name: "TxSemaphoreUpdate"}];
     TXTYPE_SELF_CHECK = 17                                [(TxTypeOpts) = {Name: "TxSelfCheck"}];
+    TXTYPE_SEMAPHORES_LIST = 22                           [(TxTypeOpts) = {Name: "TxSemaphoresList"}];
     TXTYPE_QUOTER_RESOURCE_DESCRIBE = 18                  [(TxTypeOpts) = {Name: "TxQouterResourceDescribe"}];
     TXTYPE_QUOTER_RESOURCE_ADD = 19                       [(TxTypeOpts) = {Name: "TxQouterResourceAdd"}];
     TXTYPE_QUOTER_RESOURCE_UPDATE = 20                    [(TxTypeOpts) = {Name: "TxQouterResourceUpdate"}];

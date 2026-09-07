@@ -31,4 +31,7 @@ service CoordinationService {
 
     // Describes a coordination node
     rpc DescribeNode(Coordination.DescribeNodeRequest) returns (Coordination.DescribeNodeResponse);
+
+    // Lists semaphores within a coordination node
+    rpc ListSemaphores(Coordination.ListSemaphoresRequest) returns (Coordination.ListSemaphoresResponse);
 }
