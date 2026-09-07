@@ -1,11 +1,11 @@
 # Connection and authentication
 
-{{ ydb-short-name }} DSTool (`ydb-dstool`) is a command-line utility that manages the cluster [disk subsystem](../../concepts/glossary.md#distributed-storage). Its commands talk to the cluster over two independent channels:
+{{ ydb-short-name }} DSTool (`ydb-dstool`) talks to the cluster over two independent channels:
 
-- **gRPC** — Blob Storage Controller (BSC) and other service APIs: reading configuration, changing PDisk status, VDisk and group operations.
-- **HTTP** — requests to [{{ ydb-ui-name }}](../ydb-ui/index.md) (Viewer) and node monitoring. Some commands also check the live disk state through the Viewer JSON API. For example, [`pdisk set --status BROKEN`](index.md) queries `viewer/json/pdiskinfo` before changing the status.
+- **gRPC** — Blob Storage Controller (BSC) and other service APIs: reading configuration, changing PDisk status, VDisk and group operations. This is the primary interface for data retrieval and management.
+- **HTTP** — requests to [{{ ydb-ui-name }}](../ydb-ui/index.md) (Viewer) and node monitoring. For example, some commands must check the current state of nodes and disks through the Viewer JSON API.
 
-The endpoint and authentication method determine which channel can connect and which identity the server uses to authorize the request. This page describes how the utility selects a protocol and host, how [anonymous authentication](../../security/authentication.md#anonymous) works, and how to use [login and password authentication](../../security/authentication.md#static-credentials).
+The endpoint and authentication method determine which channel can connect and which identity the server uses to authorize the request. This page describes how the utility selects a protocol and host, how [anonymous authentication](../../security/authentication.md#anonymous) works, and how to use [token authentication](#credentials).
 
 For the full list of connection flags, see [{#T}](global-options.md).
 
@@ -30,7 +30,7 @@ Examples:
 # HTTP Viewer only (local cluster without TLS)
 ydb-dstool -e http://localhost:8765 cluster list
 
-# gRPC only. HTTP requests are converted to http://<host>:8765
+# gRPC only. Required HTTP requests are sent to http://<host>:8765
 ydb-dstool -e grpc://localhost:2135 cluster list
 
 # Recommended for a cluster with authentication and TLS:
@@ -49,11 +49,11 @@ For `grpcs` and `https`, pass the cluster root certificate in `--ca-file`. The `
 
 Each internal request is classified as HTTP, gRPC, or “either” (a BSC command may use gRPC or HTTP depending on the selected endpoint protocol).
 
-The utility picks an address as follows:
+The utility picks an address in the following order:
 
 1. It takes endpoints of the required type from the `-e` list. If there are several, it picks a random host.
 2. On a connection error it retries other endpoints of the same type (up to five attempts). A host that returns an HTTP error is marked bad for the rest of the run.
-3. If there are no endpoints of the required type, the utility **converts** endpoints of the other type:
+3. If there are no endpoints of the required type, the utility converts the specified addresses to endpoints of the other type:
    - an HTTP request from `grpc`/`grpcs://HOST:PORT` becomes `{http|https}://HOST:<mon-port>`;
    - a gRPC request from `http`/`https://HOST:PORT` becomes `{grpc|grpcs}://HOST:<grpc-port>`.
 4. The conversion protocol is:
@@ -61,8 +61,6 @@ The utility picks an address as follows:
    - `grpcs` if at least one `-e` value is `grpcs` and none is `grpc`; otherwise `grpc`.
 
 If you pass only `grpcs://...:2135`, the utility warns that no HTTP endpoint is set and sends HTTP requests to `http://<host>:8765`. On a cluster whose monitoring requires TLS this fails. Specify both endpoints to avoid conversion.
-
-Some HTTP requests target a specific node (a path such as `node/<node-id>/viewer/json/...`). The TCP connection still goes to the selected HTTP endpoint; Viewer proxies the request to that node.
 
 `--use-ip` resolves the hostname to an IP address before an HTTP request.
 
@@ -76,7 +74,7 @@ A final `Can't connect to specified addresses` after a series of `HTTP Error 403
 
 If the utility finds no token in any [source](#token-sources), it sends requests without credentials: HTTP without an `Authorization` header, and gRPC without `SecurityToken` or `x-ydb-auth-ticket` metadata.
 
-This works on a local or test cluster that still allows [anonymous authentication](../../security/authentication.md#anonymous): [`enforce_user_token_requirement`](../configuration/security_config.md) is `false` (the default).
+This works on a local or test cluster that has [anonymous authentication](../../security/authentication.md#anonymous) enabled: [`enforce_user_token_requirement`](../configuration/security_config.md) is `false`, or is omitted entirely (the default).
 
 To confirm that no token is picked up from the environment, omit `--token-file` and `--iam-token-file`, unset `YDB_TOKEN` and `IAM_TOKEN`, and make sure `~/.ydb/token` and `~/.ydb/iam_token` are absent. Then run a command such as `ydb-dstool -e http://localhost:8765 cluster list`.
 
@@ -88,11 +86,11 @@ Anonymous access is intended only for evaluation and local deployments. If the a
 
 If the cluster requires authentication (`enforce_user_token_requirement: true`), an anonymous request is rejected. HTTP Viewer typically responds with `401 Unauthorized` (no `Authorization` header) or `403 Forbidden` (a header is present but the token is not accepted).
 
-## Login and password authentication {#static-credentials}
+## Token authentication {#credentials}
 
-{{ ydb-short-name }} DSTool does not accept a username and password on the command line and does not call the login service itself. It sends an already issued [authentication token](../../concepts/glossary.md#auth-token). Exchange the login and password for a token with [{{ ydb-short-name }} CLI](../ydb-cli/index.md) (`auth get-token`), then pass the token file to DSTool.
+{{ ydb-short-name }} DSTool does not accept a username and password on the command line and does not call the login service itself. The utility sends a ready-made (previously obtained) [authentication token](../../concepts/glossary.md#auth-token) issued with [{{ ydb-short-name }} CLI](../ydb-cli/index.md) (`auth get-token`).
 
-This is the same [login and password authentication](../../security/authentication.md#static-credentials) flow: the CLI sends credentials to the `Login` service, the server returns a token (default lifetime is 12 hours), and DSTool attaches that token to every request.
+To obtain the token, use the regular [authentication](../../security/authentication.md) flow: {{ ydb-short-name }} CLI sends credentials to the `Login` service, the server returns a token, and DSTool then attaches that token to every request.
 
 ### Getting a token {#get-token}
 
@@ -116,7 +114,7 @@ For a login token, set the scheme to `Login`. Otherwise HTTP Viewer receives `Au
 { printf 'Login '; cat /tmp/ydb-login.jwt; } > /path/to/ydb-token
 ```
 
-File contents:
+Example file contents:
 
 ```text
 Login eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...
