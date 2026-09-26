@@ -7,6 +7,7 @@
 
 #include <ydb/public/api/grpc/ydb_coordination_v1.grpc.pb.h>
 #include <ydb/public/sdk/cpp/src/client/common_client/impl/client.h>
+#include <ydb/public/sdk/cpp/src/client/impl/internal/grpc_connections/grpc_connections.h>
 
 #include <util/random/entropy.h>
 #include <util/generic/mapfindptr.h>
@@ -119,6 +120,67 @@ const Ydb::Coordination::DescribeNodeResult& TNodeDescription::GetProto() const 
 
 void TNodeDescription::SerializeTo(Ydb::Coordination::CreateNodeRequest& creationRequest) const {
     return Impl_->SerializeTo(creationRequest);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+struct TListSemaphoresIterator::TReaderImpl {
+public:
+    using TStreamProcessorPtr = NYdbGrpc::IStreamRequestReadProcessor<Ydb::Coordination::SemaphoreDescription>::TPtr;
+    using TGRpcStatus = NYdbGrpc::TGrpcStatus;
+
+    TReaderImpl(TStreamProcessorPtr streamProcessor, std::string endpoint)
+        : StreamProcessor_(std::move(streamProcessor))
+        , Endpoint_(std::move(endpoint))
+    {}
+
+    ~TReaderImpl() {
+        StreamProcessor_->Cancel();
+    }
+
+    bool IsFinished() const {
+        return Finished_;
+    }
+
+    TAsyncListSemaphoresPart ReadNext(std::shared_ptr<TReaderImpl> self) {
+        auto promise = NewPromise<TListSemaphoresPart>();
+        auto readCb = [self, promise](TGRpcStatus&& grpcStatus) mutable {
+            if (!grpcStatus.Ok()) {
+                self->Finished_ = true;
+                if (grpcStatus.GRpcStatusCode == grpc::StatusCode::OUT_OF_RANGE) {
+                    promise.SetValue(TListSemaphoresPart(TStatus(TPlainStatus(
+                        EStatus::SUCCESS, NYdb::NIssue::TIssues{}, self->Endpoint_, {}))));
+                } else {
+                    promise.SetValue(TListSemaphoresPart(TStatus(TPlainStatus(
+                        std::move(grpcStatus), self->Endpoint_, {}))));
+                }
+            } else {
+                promise.SetValue(TListSemaphoresPart(
+                    TStatus(TPlainStatus(EStatus::SUCCESS, NYdb::NIssue::TIssues{}, self->Endpoint_, {})),
+                    TSemaphoreDescription(self->Response_)));
+            }
+        };
+        StreamProcessor_->Read(&Response_, readCb);
+        return promise.GetFuture();
+    }
+
+private:
+    TStreamProcessorPtr StreamProcessor_;
+    Ydb::Coordination::SemaphoreDescription Response_;
+    bool Finished_ = false;
+    std::string Endpoint_;
+};
+
+TListSemaphoresIterator::TListSemaphoresIterator(std::shared_ptr<TReaderImpl> impl, TPlainStatus&& status)
+    : TStatus(std::move(status))
+    , ReaderImpl_(std::move(impl))
+{}
+
+TAsyncListSemaphoresPart TListSemaphoresIterator::ReadNext() {
+    if (!ReaderImpl_ || ReaderImpl_->IsFinished()) {
+        RaiseError("Attempt to perform read on invalid or finished stream");
+    }
+    return ReaderImpl_->ReadNext(ReaderImpl_);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -2019,6 +2081,38 @@ public:
 
         return promise.GetFuture();
     }
+
+    TAsyncListSemaphoresIterator ListSemaphores(
+        const std::string& path,
+        const TListSemaphoresSettings& settings)
+    {
+        auto request = MakeOperationRequest<Ydb::Coordination::ListSemaphoresRequest>(settings);
+        request.set_path(TStringType{path});
+        request.set_include_details(settings.IncludeDetails_);
+
+        auto promise = NewPromise<TListSemaphoresIterator>();
+
+        Connections_->StartReadStream<Ydb::Coordination::V1::CoordinationService,
+            Ydb::Coordination::ListSemaphoresRequest,
+            Ydb::Coordination::SemaphoreDescription>(
+            request,
+            [promise](TPlainStatus status,
+                    NYdbGrpc::IStreamRequestReadProcessor<Ydb::Coordination::SemaphoreDescription>::TPtr processor) mutable {
+                if (!status.Ok()) {
+                    promise.SetValue(TListSemaphoresIterator(nullptr, std::move(status)));
+                    return;
+                }
+                auto impl = std::make_shared<TListSemaphoresIterator::TReaderImpl>(
+                    std::move(processor),
+                    status.Endpoint);
+                promise.SetValue(TListSemaphoresIterator(impl, std::move(status)));
+            },
+            &Ydb::Coordination::V1::CoordinationService::Stub::AsyncListSemaphores,
+            DbDriverState_,
+            TRpcRequestSettings::Make(settings));
+
+        return promise.GetFuture();
+    }
 };
 
 TClient::TClient(const TDriver& driver, const TCommonClientSettings& settings)
@@ -2072,6 +2166,13 @@ TAsyncDescribeNodeResult TClient::DescribeNode(
     auto request = MakeOperationRequest<Ydb::Coordination::DescribeNodeRequest>(settings);
     request.set_path(TStringType{path});
     return Impl_->DescribeNode(std::move(request), settings);
+}
+
+TAsyncListSemaphoresIterator TClient::ListSemaphores(
+    const std::string& path,
+    const TListSemaphoresSettings& settings)
+{
+    return Impl_->ListSemaphores(path, settings);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

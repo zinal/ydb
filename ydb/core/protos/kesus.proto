@@ -139,6 +139,18 @@ message TEvDeleteSemaphoreResult {
     TKesusError Error = 2;
 }
 
+message TEvListSemaphores {
+    string KesusPath = 1;
+    uint64 ProxyGeneration = 2;
+    bool IncludeDetails = 3;
+}
+
+message TEvListSemaphoresResult {
+    uint64 ProxyGeneration = 1;
+    TKesusError Error = 2;
+    repeated Ydb.Coordination.SemaphoreDescription SemaphoreDescriptions = 3;
+}
+
 message TEvRegisterProxy {
     string KesusPath = 1;
     uint64 ProxyGeneration = 2;

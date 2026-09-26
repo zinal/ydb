@@ -170,6 +170,15 @@ NKikimrKesus::TEvGetConfigResult TTestContext::GetConfig() {
     return result->Record;
 }
 
+NKikimrKesus::TEvListSemaphoresResult TTestContext::ListSemaphoresFromTablet(bool includeDetails) {
+    const ui64 cookie = RandomNumber<ui64>();
+    const auto edge = Runtime->AllocateEdgeActor();
+    SendFromEdge(edge, new TEvKesus::TEvListSemaphores("", includeDetails), cookie);
+
+    auto result = ExpectEdgeEvent<TEvKesus::TEvListSemaphoresResult>(edge, cookie);
+    return result->Record;
+}
+
 NKikimrKesus::TEvSetConfigResult TTestContext::SetConfig(ui64 txId, const Ydb::Coordination::Config& config, ui64 version, Ydb::StatusIds::StatusCode status) {
     const ui64 cookie = RandomNumber<ui64>();
     const auto edge = Runtime->AllocateEdgeActor();
