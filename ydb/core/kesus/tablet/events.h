@@ -30,6 +30,8 @@ namespace TEvKesus {
         EvDescribeSessionsResult,
         EvDescribeSemaphore,
         EvDescribeSemaphoreResult,
+        EvListSemaphores,
+        EvListSemaphoresResult,
         EvCreateSemaphore,
         EvCreateSemaphoreResult,
         EvUpdateSemaphore,
@@ -204,6 +206,22 @@ namespace TEvKesus {
 
     struct TEvDescribeSemaphoreResult : public TResultBase<TEvDescribeSemaphoreResult, NKikimrKesus::TEvDescribeSemaphoreResult, EvDescribeSemaphoreResult> {
         using TResultBase::TResultBase;
+    };
+
+    struct TEvListSemaphores : public TEventPB<TEvListSemaphores, NKikimrKesus::TEvListSemaphores, EvListSemaphores> {
+        TEvListSemaphores() = default;
+
+        explicit TEvListSemaphores(const TString& kesusPath) {
+            Record.SetKesusPath(kesusPath);
+        }
+    };
+
+    struct TEvListSemaphoresResult : public TEventPB<TEvListSemaphoresResult, NKikimrKesus::TEvListSemaphoresResult, EvListSemaphoresResult> {
+        TEvListSemaphoresResult() = default;
+
+        explicit TEvListSemaphoresResult(Ydb::StatusIds::StatusCode status, const TString& reason) {
+            FillError(Record.MutableError(), status, reason);
+        }
     };
 
     struct TEvCreateSemaphore : public TEventPB<TEvCreateSemaphore, NKikimrKesus::TEvCreateSemaphore, EvCreateSemaphore> {
